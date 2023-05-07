@@ -18,7 +18,7 @@ Loss function
 Δbₗ = β (⟨hₗ⟩_{p(h),p_{data}} - ⟨hₗ⟩_{p(v,h)})
 ```
 """
-function loss(rbm, J, x; hparams, t=0)
+function loss(rbm, J, x; hparams)
     rbm.v = x
     rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(J.w' * rbm.v .+ J.b))) 
 
@@ -28,7 +28,7 @@ function loss(rbm, J, x; hparams, t=0)
 
     rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(J.w * rbm.h .+ J.a)))  
 
-    for i in 1:t
+    for i in 1:hparams.t
         rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(J.w' * rbm.v .+ J.b))) 
         rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(J.w * rbm.h .+ J.a)))  
     end

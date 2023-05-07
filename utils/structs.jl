@@ -5,6 +5,7 @@ using Parameters: @with_kw, @unpack
     nh::Int = 100
     batch_size::Int=25
     lr::Float64 = 0.0002
+    t::Int = 10
 end
 
 mutable struct RBM

@@ -8,13 +8,13 @@ include("loader.jl")
 include("en.jl")
 
 # Training function
-function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001)
-    rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr)
+function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10)
+    rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t)
     x = loadData(; hparams, dsName="MNIST01")
     for epoch in 1:epochs
         enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = 0, 0, 0, 0
         Threads.@threads for i in eachindex(x)
-            Δw, Δa, Δb = loss(rbm, J, x[i]; hparams, t = 10)
+            Δw, Δa, Δb = loss(rbm, J, x[i]; hparams)
 
             updateJ!(J, Δw, Δa, Δb; hparams)
 

@@ -17,8 +17,8 @@ function initModelStats()
     mStats
 end
 
-function initModel(; nv=10, nh=5, batch_size=4, lr=1.5)
-    hparams = HyperParams(nv, nh, batch_size, lr)
+function initModel(; nv=10, nh=5, batch_size=4, lr=1.5, t=10)
+    hparams = HyperParams(nv, nh, batch_size, lr, t)
     rbm = genRBM(hparams)
     J = initWeights(hparams)
     mStats = initModelStats()
