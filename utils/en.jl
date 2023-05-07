@@ -49,3 +49,24 @@ function updateJ!(J, Δw, Δa, Δb; hparams)
     J.a = J.a + hparams.lr .* Δa
     J.b = J.b + hparams.lr .* Δb
 end
+
+function genSample(rbm, J, hparams, m; num = 4, t = 10)
+    xh = rand(hparams.nh, num)
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(J.w * rand(hparams.nh, num) .+ J.a)))
+
+    for i in 1:t
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, num) .< σ.(J.w' * rbm.v .+ J.b))) 
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(J.w * rbm.h .+ J.a)))  
+    end
+
+    samp = reshape(rbm.v, 28,28,:);
+
+    pEn = plot(m.enList, label="Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+    pLoss = plot(m.ΔwList, label="Loss w", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+    pLoss = plot!(m.ΔaList, label="Loss a", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+    pLoss = plot!(m.ΔbList, label="Loss b", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+    hmSamp = heatmap(reshape(samp[:,:,1:4], 28,28*4))
+    p = plot(pEn, pLoss, layout=(1,2))
+    f = plot(p,hmSamp, layout=(2,1))
+    display(f)
+end
