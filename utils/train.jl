@@ -31,7 +31,13 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
             @info epoch, m.enList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end]
             if plotSample
                 samp = reshape(Array{Float32}(sign.(rand(hparams.nv, 10) .< σ.(J.w * rand(hparams.nh, 10) .+ J.a))), 28,28,:);
-                f = heatmap(reshape(samp[:,:,1:10], 28,28*10), size=(2500,300))
+                pEn = plot(m.enList, label="Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+                pLoss = plot(m.ΔwList, label="Loss w", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+                pLoss = plot!(m.ΔaList, label="Loss a", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+                pLoss = plot!(m.ΔbList, label="Loss b", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+                hmSamp = heatmap(reshape(samp[:,:,1:4], 28,28*4))
+                p = plot(pEn, pLoss, layout=(1,2))
+                f = plot(p,hmSamp, layout=(2,1))
                 display(f)
             end
         end
