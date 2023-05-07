@@ -1,8 +1,11 @@
 using Flux
 include("utils/train.jl")
 
+
+rbm, J, m, hparams = train( epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=true)
+
 begin
-    rbm, J, m, hparams = train(epochs=2)
+    rbm, J, m, hparams = train(epochs=2, plotSample=true)
     pEn = plot(m.enList, label="Energy")
     pLoss = plot(m.ΔwList, label="Loss w")
     pLoss = plot!(m.ΔaList, label="Loss a")
@@ -10,8 +13,8 @@ begin
     plot(pEn, pLoss, layout=(2,1))
 end
 
-samp = reshape(Array{Float32}(sign.(rand(hparams.nv) .< σ.(J.w * rand(hparams.nh, 10) .+ J.a))), 28,28,:);
-samp = reshape(Array{Float32}(sign.(rand(hparams.nv) .< σ.(J.w * rbm.h .+ J.a))), 28,28,:);
+sampSyn = reshape(Array{Float32}(sign.(rand(hparams.nv, 10) .< σ.(J.w * rand(hparams.nh, 10) .+ J.a))), 28,28,:);
+sampH = reshape(Array{Float32}(sign.(rand(hparams.nv, 100) .< σ.(J.w * rbm.h .+ J.a))), 28,28,:);
 
 heatmap(reshape(samp[:,:,1:10], 28,28*10), size=(2500,300))
 

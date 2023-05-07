@@ -8,7 +8,7 @@ include("loader.jl")
 include("en.jl")
 
 # Training function
-function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10)
+function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false)
     rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t)
     x = loadData(; hparams, dsName="MNIST01")
     for epoch in 1:epochs
@@ -29,11 +29,16 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10)
         append!(m.ΔbList, ΔbEpoch/size(x,1))
         if epoch % 1 == 0
             @info epoch, m.enList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end]
+            if plotSample
+                samp = reshape(Array{Float32}(sign.(rand(hparams.nv, 10) .< σ.(J.w * rand(hparams.nh, 10) .+ J.a))), 28,28,:);
+                f = heatmap(reshape(samp[:,:,1:10], 28,28*10), size=(2500,300))
+                display(f)
+            end
         end
     end
     rbm, J, m, hparams
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+    train()
 end
