@@ -1,4 +1,5 @@
 using MLDatasets, Random
+using BSON: @save, @load
 
 function loadData(; hparams, dsName="MNIST01")
     if dsName=="testing"
