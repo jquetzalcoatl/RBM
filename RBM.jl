@@ -2,7 +2,7 @@ using Flux
 include("utils/train.jl")
 
 
-rbm, J, m, hparams = train( epochs=2, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=true)
+rbm, J, m, hparams = train( epochs=5, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=true, annealing=true)
 
 begin
     rbm, J, m, hparams = train(epochs=2, plotSample=true)

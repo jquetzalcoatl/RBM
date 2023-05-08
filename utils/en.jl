@@ -18,19 +18,19 @@ Loss function
 Δbₗ = β (⟨hₗ⟩_{p(h),p_{data}} - ⟨hₗ⟩_{p(v,h)})
 ```
 """
-function loss(rbm, J, x; hparams)
+function loss(rbm, J, x; hparams, β=1)
     rbm.v = x
-    rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(J.w' * rbm.v .+ J.b))) 
+    rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(β .* (J.w' * rbm.v .+ J.b)))) 
 
     vh_data = (rbm.v * rbm.h')/hparams.batch_size
     v_data = reshape(mean(rbm.v, dims=2),:)/hparams.batch_size
     h_data = reshape(mean(rbm.h, dims=2),:)/hparams.batch_size
 
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(J.w * rbm.h .+ J.a)))  
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(β .* (J.w * rbm.h .+ J.a))))  
 
     for i in 1:hparams.t
-        rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(J.w' * rbm.v .+ J.b))) 
-        rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(J.w * rbm.h .+ J.a)))  
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(β .* (J.w' * rbm.v .+ J.b)))) 
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(β .* (J.w * rbm.h .+ J.a))))  
     end
 
     vh_recontruct = (rbm.v * rbm.h')/hparams.batch_size
@@ -50,13 +50,13 @@ function updateJ!(J, Δw, Δa, Δb; hparams)
     J.b = J.b + hparams.lr .* Δb
 end
 
-function genSample(rbm, J, hparams, m; num = 4, t = 10)
+function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1)
     xh = rand(hparams.nh, num)
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(J.w * rand(hparams.nh, num) .+ J.a)))
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(β .* (J.w * rand(hparams.nh, num) .+ J.a))))
 
     for i in 1:t
-        rbm.h = Array{Float32}(sign.(rand(hparams.nh, num) .< σ.(J.w' * rbm.v .+ J.b))) 
-        rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(J.w * rbm.h .+ J.a)))  
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, num) .< σ.(β .* (J.w' * rbm.v .+ J.b)))) 
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(β .* (J.w * rbm.h .+ J.a))))  
     end
 
     samp = reshape(rbm.v, 28,28,:);

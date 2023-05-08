@@ -8,13 +8,16 @@ include("loader.jl")
 include("en.jl")
 
 # Training function
-function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false)
+function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1)
     rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t)
     x = loadData(; hparams, dsName="MNIST01")
+    if annealing
+        β = 0
+    end 
     for epoch in 1:epochs
         enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = 0, 0, 0, 0
         Threads.@threads for i in eachindex(x)
-            Δw, Δa, Δb = loss(rbm, J, x[i]; hparams)
+            Δw, Δa, Δb = loss(rbm, J, x[i]; hparams, β)
 
             updateJ!(J, Δw, Δa, Δb; hparams)
 
@@ -28,10 +31,13 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
         append!(m.ΔaList, ΔaEpoch/size(x,1))
         append!(m.ΔbList, ΔbEpoch/size(x,1))
         if epoch % 1 == 0
-            @info epoch, m.enList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end]
+            @info epoch, m.enList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
             if plotSample
                 genSample(rbm, J, hparams, m; num = 4, t)
             end
+        end
+        if annealing
+            β = β + 1/epochs
         end
     end
     rbm, J, m, hparams
