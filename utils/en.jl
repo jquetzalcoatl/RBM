@@ -71,7 +71,7 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train")
         f = plot(p,hmSamp, layout=(2,1))
         display(f)
     elseif mode == "test"
-        avSamp = mean(samp, dims=3)
+        avSamp = σ.(mean(samp, dims=3))[:,:,1]
         hmSamp = heatmap(avSamp)
         display(hmSamp)
     end
