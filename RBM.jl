@@ -1,4 +1,5 @@
 using Flux
+using BSON: @save, @load
 include("utils/train.jl")
 
 
@@ -25,3 +26,7 @@ heatmap(reshape(reshape(x[1], 28, 28, :), 28,28*100), size=(2500,300))
 heatmap(J.w)
 
 plot(reshape(J.w,:), st=:hist, normalize=true)
+
+saveModel(rbm, J, m, hparams; path = "1")
+
+rbm, J, m, hparams = loadModel()
