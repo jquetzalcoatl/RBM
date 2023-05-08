@@ -50,7 +50,7 @@ function updateJ!(J, Δw, Δa, Δb; hparams)
     J.b = J.b + hparams.lr .* Δb
 end
 
-function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1)
+function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train")
     xh = rand(hparams.nh, num)
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(β .* (J.w * rand(hparams.nh, num) .+ J.a))))
 
@@ -61,12 +61,18 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1)
 
     samp = reshape(rbm.v, 28,28,:);
 
-    pEn = plot(m.enList, label="Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-    pLoss = plot(m.ΔwList, label="Loss w", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-    pLoss = plot!(m.ΔaList, label="Loss a", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-    pLoss = plot!(m.ΔbList, label="Loss b", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-    hmSamp = heatmap(reshape(samp[:,:,1:4], 28,28*4))
-    p = plot(pEn, pLoss, layout=(1,2))
-    f = plot(p,hmSamp, layout=(2,1))
-    display(f)
+    if mode == "train"
+        pEn = plot(m.enList, label="Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot(m.ΔwList, label="Loss w", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot!(m.ΔaList, label="Loss a", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot!(m.ΔbList, label="Loss b", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        hmSamp = heatmap(reshape(samp[:,:,1:4], 28,28*4))
+        p = plot(pEn, pLoss, layout=(1,2))
+        f = plot(p,hmSamp, layout=(2,1))
+        display(f)
+    elseif mode == "test"
+        avSamp = mean(samp, dims=3)
+        hmSamp = heatmap(avSamp)
+        display(hmSamp)
+    end
 end
