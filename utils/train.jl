@@ -1,6 +1,5 @@
 using CUDA
 using Plots, Statistics
-using BSON: @load, @save
 
 include("init.jl")
 include("structs.jl")

@@ -18,3 +18,19 @@ function loadData(; hparams, dsName="MNIST01")
     end
     x
 end
+
+function saveModel(rbm, J, m, hparams; path = "0")
+    isdir("./models/$path") || mkpath("./models/$path")
+    @save "./models/$path/RBM.bson" rbm
+    @save "./models/$path/J.bson" J
+    @save "./models/$path/m.bson" m
+    @save "./models/$path/hparams.bson" hparams
+end
+
+function loadModel(path = "0")
+    @load "./models/$path/RBM.bson" rbm
+    @load "./models/$path/J.bson" J
+    @load "./models/$path/m.bson" m
+    @load "./models/$path/hparams.bson" hparams
+    return rbm, J, m, hparams
+end
