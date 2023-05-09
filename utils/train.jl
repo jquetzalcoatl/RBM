@@ -44,8 +44,18 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
         if annealing
             β = β + 1/epochs
         end
+        if PCD
+            PCD_state = reshuffle(PCD_state; hparams)
+        end
     end
     rbm, J, m, hparams
+end
+
+function reshuffle(PCD_state; hparams)
+    cat_state = cat(PCD_state..., dims=2)
+    idx = randperm(size(cat_state,2))
+    new_state = cat_state[:,idx]
+    [new_state[:,i] for i in Iterators.partition(1:size(new_state,2), hparams.batch_size)]
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
