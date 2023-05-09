@@ -10,7 +10,7 @@ include("en.jl")
 function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true)
     rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t)
     x = loadData(; hparams, dsName="MNIST01")
-    PCD_state = x[1]
+    PCD_state = x
     if annealing
         β = 0
     end 
@@ -19,9 +19,9 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
         enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = 0, 0, 0, 0
         
         Threads.@threads for i in eachindex(x)
-            Δw, Δa, Δb = loss(rbm, J, PCD_state; hparams, β)
+            Δw, Δa, Δb = loss(rbm, J, PCD_state[i]; hparams, β)
             if PCD
-                PCD_state = rbm.v
+                PCD_state[i] = rbm.v
             end
 
             updateJ!(J, Δw, Δa, Δb; hparams)

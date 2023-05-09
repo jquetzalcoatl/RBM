@@ -6,9 +6,9 @@ function genRBM(args)
 end
 
 function initWeights(args)
-    W = randn(args.nv, args.nh)
-    a = randn(args.nv)
-    b = randn(args.nh)
+    W = randn(args.nv, args.nh) ./ √args.nh
+    a = randn(args.nv) ./ √args.nv
+    b = randn(args.nh) ./ √args.nh
     return Weights(W,a,b)
 end
 
