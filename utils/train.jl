@@ -1,5 +1,5 @@
 using CUDA
-using Plots, Statistics, ArgParse
+using Plots, Statistics
 
 include("init.jl")
 include("structs.jl")
