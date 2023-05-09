@@ -1,5 +1,5 @@
 using CUDA
-using Plots, Statistics
+using Plots, Statistics, ArgParse
 
 include("init.jl")
 include("structs.jl")
@@ -7,16 +7,22 @@ include("loader.jl")
 include("en.jl")
 
 # Training function
-function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1)
+function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true)
     rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t)
     x = loadData(; hparams, dsName="MNIST01")
+    PCD_state = x[1]
     if annealing
         β = 0
     end 
+
     for epoch in 1:epochs
         enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = 0, 0, 0, 0
+        
         Threads.@threads for i in eachindex(x)
-            Δw, Δa, Δb = loss(rbm, J, x[i]; hparams, β)
+            Δw, Δa, Δb = loss(rbm, J, PCD_state; hparams, β)
+            if PCD
+                PCD_state = rbm.v
+            end
 
             updateJ!(J, Δw, Δa, Δb; hparams)
 

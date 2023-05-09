@@ -22,6 +22,7 @@ end
 
 function saveModel(rbm, J, m, hparams; path = "0")
     isdir("./models/$path") || mkpath("./models/$path")
+    @info "./models/$path"
     @save "./models/$path/RBM.bson" rbm
     @save "./models/$path/J.bson" J
     @save "./models/$path/m.bson" m
