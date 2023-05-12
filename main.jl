@@ -61,6 +61,10 @@ function parseCommandLine()
         help = "Select device"
         arg_type = Int64
         default = 5
+      "--opt"
+        help = "Use ADAM? False for SGD"
+        arg_type = Bool
+        default = true
     end
   
     return parse_args(s) # the result is a Dict{String,Any
@@ -83,7 +87,11 @@ function main()
     if gpu_usage
         CUDA.device!(dict["dev"])
     end
-    rbm, J, m, hparams = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage)
+    if dict["opt"]
+        rbm, J, m, hparams = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40)
+    else
+        rbm, J, m, hparams = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40)
+    end
     saveModel(rbm, J, m, hparams; path)
 end
 

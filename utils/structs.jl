@@ -26,3 +26,9 @@ mutable struct ModelStats
     ΔaList 
     ΔbList
 end
+
+mutable struct WeightOpt
+    w
+    a
+    b
+end

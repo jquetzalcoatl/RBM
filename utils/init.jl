@@ -1,5 +1,6 @@
 using CUDA, Flux
 include("structs.jl")
+include("adamOpt.jl")
 
 function selectDev(args)
     if args.gpu_usage
@@ -18,7 +19,7 @@ end
 
 function initWeights(args)
     dev = selectDev(args)
-    W = randn(args.nv, args.nh) ./ √args.nh |> dev
+    W = randn(args.nv, args.nh) ./ √(2*args.nh) |> dev
     a = randn(args.nv) ./ √args.nv |> dev
     b = randn(args.nh) ./ √args.nh |> dev
     return Weights(W,a,b)
@@ -35,4 +36,13 @@ function initModel(; nv=10, nh=5, batch_size=4, lr=1.5, t=10, gpu_usage = false)
     J = initWeights(hparams)
     mStats = initModelStats()
     return rbm, J, mStats, hparams
+end
+
+function initOptW(args, J)
+    dev = selectDev(args)
+    optW = Adam(J.w, args.lr; dev)
+    optA = Adam(J.a, args.lr; dev)
+    optB = Adam(J.b, args.lr; dev)
+    opt = WeightOpt(optW, optA, optB)
+    return opt
 end

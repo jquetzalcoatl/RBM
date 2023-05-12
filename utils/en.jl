@@ -1,4 +1,5 @@
 using LinearAlgebra, Flux
+include("adamOpt.jl")
 
 @doc raw"""
 Energy of Binary RBM
@@ -6,8 +7,8 @@ Energy of Binary RBM
 E(|v⟩, |h⟩) = - ⟨v|a⟩ - ⟨b|h⟩ - ⟨v|W|a⟩
 ```
 """
-en(rbm, J) = - (rbm.v' * J.a + J.b' * rbm.h + rbm.v' * J.w * rbm.h)
-en(rbm, J) = mean(- (rbm.v' * J.a + (J.b' * rbm.h)' + [(rbm.v' * J.w * rbm.h)[i,i] for i in 1:hparams.batch_size]))
+# en(rbm, J) = - (rbm.v' * J.a + J.b' * rbm.h + rbm.v' * J.w * rbm.h)
+# en(rbm, J) = mean(- (rbm.v' * J.a + (J.b' * rbm.h)' + [(rbm.v' * J.w * rbm.h)[i,i] for i in 1:hparams.batch_size]))
 en(rbm, J) = - mean(rbm.v' * J.a + (J.b' * rbm.h)' + diag(rbm.v' * J.w * rbm.h))
 
 @doc raw"""
@@ -50,7 +51,14 @@ function updateJ!(J, Δw, Δa, Δb; hparams)
     J.b = J.b + hparams.lr .* Δb
 end
 
+function updateJAdam!(J, Δw, Δa, Δb, opt; hparams)
+    J.w = step!(opt.w, Δw)
+    J.a = step!(opt.a, Δa)
+    J.b = step!(opt.b, Δb)
+end
+
 function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", dev)
+    sampAv = Int(num/4)
     xh = rand(hparams.nh, num) |> dev
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
 
@@ -62,11 +70,14 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
     samp = reshape(rbm.v, 28,28,:) |> cpu;
 
     if mode == "train"
-        pEn = plot(m.enList, label="Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot(m.ΔwList, label="Loss w", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot!(m.ΔaList, label="Loss a", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot!(m.ΔbList, label="Loss b", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        hmSamp = heatmap(reshape(samp[:,:,1:4], 28,28*4))
+        pEn = plot(m.enList, label="- Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot(m.ΔwList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot!(m.ΔaList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot!(m.ΔbList, label="Δb", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        
+#         hmSamp = heatmap(reshape(samp[:,:,1:4], 28,28*4))
+        avSamp = [σ.(mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3))[:,:,1] for i in 1:4]
+        hmSamp = heatmap(hcat(avSamp...))
         p = plot(pEn, pLoss, layout=(1,2))
         f = plot(p,hmSamp, layout=(2,1))
         display(f)
