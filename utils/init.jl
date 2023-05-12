@@ -1,14 +1,26 @@
+using CUDA, Flux
 include("structs.jl")
 
+function selectDev(args)
+    if args.gpu_usage
+        dev = gpu
+    else
+        dev = cpu
+    end
+    dev
+end
+
 function genRBM(args)
-    rbm = RBM(rand(args.nv, args.batch_size), rand(args.nh, args.batch_size))
+    dev = selectDev(args)
+    rbm = RBM(rand(args.nv, args.batch_size) |> dev, rand(args.nh, args.batch_size) |> dev)
     rbm
 end
 
 function initWeights(args)
-    W = randn(args.nv, args.nh) ./ √args.nh
-    a = randn(args.nv) ./ √args.nv
-    b = randn(args.nh) ./ √args.nh
+    dev = selectDev(args)
+    W = randn(args.nv, args.nh) ./ √args.nh |> dev
+    a = randn(args.nv) ./ √args.nv |> dev
+    b = randn(args.nh) ./ √args.nh |> dev
     return Weights(W,a,b)
 end
 
@@ -17,8 +29,8 @@ function initModelStats()
     mStats
 end
 
-function initModel(; nv=10, nh=5, batch_size=4, lr=1.5, t=10)
-    hparams = HyperParams(nv, nh, batch_size, lr, t)
+function initModel(; nv=10, nh=5, batch_size=4, lr=1.5, t=10, gpu_usage = false)
+    hparams = HyperParams(nv, nh, batch_size, lr, t, gpu_usage)
     rbm = genRBM(hparams)
     J = initWeights(hparams)
     mStats = initModelStats()

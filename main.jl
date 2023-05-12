@@ -1,4 +1,4 @@
-using ArgParse
+using ArgParse, CUDA, Flux
 
 # include("./utils/init.jl")
 # include("./utils/structs.jl")
@@ -53,6 +53,14 @@ function parseCommandLine()
         help = "Dir name"
         arg_type = String
         default = "0"
+      "--gpu", "-g"
+        help = "Use GPU?"
+        arg_type = Bool
+        default = false
+      "--dev"
+        help = "Select device"
+        arg_type = Int64
+        default = 5
     end
   
     return parse_args(s) # the result is a Dict{String,Any
@@ -71,7 +79,11 @@ function main()
     β=dict["beta"]
     PCD=dict["pcd"]
     path = dict["msg"]
-    rbm, J, m, hparams = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD)
+    gpu_usage = dict["gpu"]
+    if gpu_usage
+        CUDA.device!(dict["dev"])
+    end
+    rbm, J, m, hparams = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage)
     saveModel(rbm, J, m, hparams; path)
 end
 

@@ -6,6 +6,7 @@ using Parameters: @with_kw, @unpack
     batch_size::Int=25
     lr::Float64 = 0.0002
     t::Int = 10
+    gpu_usage::Bool = false
 end
 
 mutable struct RBM

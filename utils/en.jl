@@ -18,19 +18,19 @@ Loss function
 Δbₗ = β (⟨hₗ⟩_{p(h),p_{data}} - ⟨hₗ⟩_{p(v,h)})
 ```
 """
-function loss(rbm, J, x; hparams, β=1)
-    rbm.v = x
-    rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(β .* (J.w' * rbm.v .+ J.b)))) 
+function loss(rbm, J, x; hparams, β=1, dev)
+    rbm.v = x |> dev
+    rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
 
     vh_data = (rbm.v * rbm.h')/hparams.batch_size
     v_data = reshape(mean(rbm.v, dims=2),:)/hparams.batch_size
     h_data = reshape(mean(rbm.h, dims=2),:)/hparams.batch_size
 
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(β .* (J.w * rbm.h .+ J.a))))  
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev
 
     for i in 1:hparams.t
-        rbm.h = Array{Float32}(sign.(rand(hparams.nh) .< σ.(β .* (J.w' * rbm.v .+ J.b)))) 
-        rbm.v = Array{Float32}(sign.(rand(hparams.nv) .< σ.(β .* (J.w * rbm.h .+ J.a))))  
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
     end
 
     vh_recontruct = (rbm.v * rbm.h')/hparams.batch_size
@@ -50,16 +50,16 @@ function updateJ!(J, Δw, Δa, Δb; hparams)
     J.b = J.b + hparams.lr .* Δb
 end
 
-function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train")
-    xh = rand(hparams.nh, num)
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(β .* (J.w * rand(hparams.nh, num) .+ J.a))))
+function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", dev)
+    xh = rand(hparams.nh, num) |> dev
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
 
     for i in 1:t
-        rbm.h = Array{Float32}(sign.(rand(hparams.nh, num) .< σ.(β .* (J.w' * rbm.v .+ J.b)))) 
-        rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) .< σ.(β .* (J.w * rbm.h .+ J.a))))  
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
     end
 
-    samp = reshape(rbm.v, 28,28,:);
+    samp = reshape(rbm.v, 28,28,:) |> cpu;
 
     if mode == "train"
         pEn = plot(m.enList, label="Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
