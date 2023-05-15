@@ -58,7 +58,7 @@ function updateJAdam!(J, Δw, Δa, Δb, opt; hparams)
 end
 
 function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", dev)
-    sampAv = Int(num/4)
+    
     xh = rand(hparams.nh, num) |> dev
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
 
@@ -70,10 +70,12 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
     samp = reshape(rbm.v, 28,28,:) |> cpu;
 
     if mode == "train"
-        pEn = plot(m.enList, label="- Energy", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot(m.ΔwList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot!(m.ΔaList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot!(m.ΔbList, label="Δb", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        sampAv = Int(num/4)
+        pEn = plot(m.enList, yerr=m.enSDList, label="Energy per spin \n  T = $(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+#         pEn = hline!([1/(β+0.000001)], label="T", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot(m.ΔwList, yerr=m.ΔwSDList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot!(m.ΔbList, yerr=m.ΔbSDList, label="Δb", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
         
 #         hmSamp = heatmap(reshape(samp[:,:,1:4], 28,28*4))
         avSamp = [σ.(mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3))[:,:,1] for i in 1:4]

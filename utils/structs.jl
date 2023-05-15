@@ -7,6 +7,7 @@ using Parameters: @with_kw, @unpack
     lr::Float64 = 0.0002
     t::Int = 10
     gpu_usage::Bool = false
+    optType::String = "SGD"
 end
 
 mutable struct RBM
@@ -21,10 +22,14 @@ mutable struct Weights
 end
 
 mutable struct ModelStats
-    enList 
+    enList
+    enSDList
     ΔwList 
     ΔaList 
     ΔbList
+    ΔwSDList 
+    ΔaSDList 
+    ΔbSDList
 end
 
 mutable struct WeightOpt

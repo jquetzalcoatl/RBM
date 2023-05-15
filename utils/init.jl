@@ -26,12 +26,12 @@ function initWeights(args)
 end
 
 function initModelStats()
-    mStats = ModelStats([],[],[],[])
+    mStats = ModelStats([],[],[],[],[],[],[],[])
     mStats
 end
 
-function initModel(; nv=10, nh=5, batch_size=4, lr=1.5, t=10, gpu_usage = false)
-    hparams = HyperParams(nv, nh, batch_size, lr, t, gpu_usage)
+function initModel(; nv=10, nh=5, batch_size=4, lr=1.5, t=10, gpu_usage = false, optType="SGD")
+    hparams = HyperParams(nv, nh, batch_size, lr, t, gpu_usage, optType)
     rbm = genRBM(hparams)
     J = initWeights(hparams)
     mStats = initModelStats()

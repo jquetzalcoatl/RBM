@@ -20,15 +20,15 @@ function parseCommandLine()
       "--epochs", "-e"
         help = "Epochs"
         arg_type = Int64
-        default = 500
+        default = 2000
       "--batchsize", "-b"
         help = "Batch Size"
         arg_type = Int64
-        default = 100
+        default = 500
       "--lr", "-l"
         help = "Learning rate"
         arg_type = Float64
-        default = 0.01
+        default = 0.001
       "--gibbs", "-t"
         help = "Gibbs sampling length"
         arg_type = Int64
@@ -88,11 +88,13 @@ function main()
         CUDA.device!(dict["dev"])
     end
     if dict["opt"]
-        rbm, J, m, hparams = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40)
+        rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="Adam")
+        saveModel(rbm, J, m, hparams; opt, path)
     else
-        rbm, J, m, hparams = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40)
+        rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
+        saveModel(rbm, J, m, hparams; path)
     end
-    saveModel(rbm, J, m, hparams; path)
+
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

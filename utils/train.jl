@@ -7,17 +7,18 @@ include("loader.jl")
 include("en.jl")
 
 # Training function
-function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100)
-    rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t, gpu_usage)
+function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, optType="SGD")
+    
+    rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t, gpu_usage, optType)
     dev = selectDev(hparams)
     x = loadData(; hparams, dsName="MNIST01")
     PCD_state = x
     if annealing
-        β = 0
+        β = 1.0
     end 
 
     for epoch in 1:epochs
-        enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = 0, 0, 0, 0
+        enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = [], [], [], []
         
 #         Threads.@threads 
         for i in eachindex(x)
@@ -28,19 +29,23 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
 
             updateJ!(J, Δw, Δa, Δb; hparams)
 
-            enEpoch = enEpoch + en(rbm,J) |> cpu
-            ΔwEpoch = ΔwEpoch + mean(Δw) |> cpu
-            ΔaEpoch = ΔaEpoch + mean(Δa) |> cpu
-            ΔbEpoch = ΔbEpoch + mean(Δb) |> cpu
+            append!(enEpoch, en(rbm,J) |> cpu)
+            append!(ΔwEpoch, mean(Δw) |> cpu)
+            append!(ΔaEpoch, mean(Δa) |> cpu)
+            append!(ΔbEpoch, mean(Δb) |> cpu)
         end
-        append!(m.enList, enEpoch/size(x,1))
-        append!(m.ΔwList, ΔwEpoch/size(x,1))
-        append!(m.ΔaList, ΔaEpoch/size(x,1))
-        append!(m.ΔbList, ΔbEpoch/size(x,1))
+        append!(m.enList, mean(enEpoch)/(hparams.nv+hparams.nh))
+        append!(m.enSDList, std(enEpoch)/(hparams.nv+hparams.nh))
+        append!(m.ΔwList, mean(ΔwEpoch))
+        append!(m.ΔwSDList, std(ΔwEpoch))
+        append!(m.ΔaList, mean(ΔaEpoch))
+        append!(m.ΔaSDList, std(ΔaEpoch))
+        append!(m.ΔbList, mean(ΔbEpoch))
+        append!(m.ΔbSDList, std(ΔbEpoch))
         if epoch % 1 == 0
-            @info epoch, m.enList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
+            @info epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
             if plotSample
-                genSample(rbm, J, hparams, m; num = 4, t=t_samp, dev)
+                genSample(rbm, J, hparams, m; num = 4, β, t=t_samp, dev)
             end
         end
         if annealing
@@ -50,22 +55,22 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
             PCD_state = reshuffle(PCD_state; hparams)
         end
     end
-    rbm, J, m, hparams
+    rbm, J, m, hparams, 0
 end
 
-function trainAdam( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=40)
+function trainAdam( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=40, optType="Adam")
     
-    rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t, gpu_usage)
+    rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t, gpu_usage, optType)
     opt = initOptW(hparams, J) 
     dev = selectDev(hparams)
     x = loadData(; hparams, dsName="MNIST01")
     PCD_state = x
     if annealing
-        β = 0
+        β = 1.0
     end 
 
     for epoch in 1:epochs
-        enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = 0, 0, 0, 0
+        enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch = [], [], [], []
         
 #         Threads.@threads 
         for i in eachindex(x)
@@ -77,19 +82,23 @@ function trainAdam( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
 #             updateJ!(J, Δw, Δa, Δb; hparams)
             updateJAdam!(J, Δw, Δa, Δb, opt; hparams)
 
-            enEpoch = enEpoch + en(rbm,J) |> cpu
-            ΔwEpoch = ΔwEpoch + mean(Δw) |> cpu
-            ΔaEpoch = ΔaEpoch + mean(Δa) |> cpu
-            ΔbEpoch = ΔbEpoch + mean(Δb) |> cpu
+            append!(enEpoch, en(rbm,J) |> cpu)
+            append!(ΔwEpoch, mean(Δw) |> cpu)
+            append!(ΔaEpoch, mean(Δa) |> cpu)
+            append!(ΔbEpoch, mean(Δb) |> cpu)
         end
-        append!(m.enList, enEpoch/size(x,1))
-        append!(m.ΔwList, ΔwEpoch/size(x,1))
-        append!(m.ΔaList, ΔaEpoch/size(x,1))
-        append!(m.ΔbList, ΔbEpoch/size(x,1))
+        append!(m.enList, mean(enEpoch)/(hparams.nv+hparams.nh))
+        append!(m.enSDList, std(enEpoch)/(hparams.nv+hparams.nh))
+        append!(m.ΔwList, mean(ΔwEpoch))
+        append!(m.ΔwSDList, std(ΔwEpoch))
+        append!(m.ΔaList, mean(ΔaEpoch))
+        append!(m.ΔaSDList, std(ΔaEpoch))
+        append!(m.ΔbList, mean(ΔbEpoch))
+        append!(m.ΔbSDList, std(ΔbEpoch))
         if epoch % 1 == 0
-            @info epoch, m.enList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
+            @info epoch, m.enList[end], m.enSDList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
             if plotSample
-                genSample(rbm, J, hparams, m; num, t=t_samp, dev)
+                genSample(rbm, J, hparams, m; num, β, t=t_samp, dev)
             end
         end
         if annealing
@@ -99,7 +108,7 @@ function trainAdam( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
             PCD_state = reshuffle(PCD_state; hparams)
         end
     end
-    rbm, J, m, hparams
+    rbm, J, m, hparams, opt
 end
 
 function reshuffle(PCD_state; hparams)
