@@ -1,5 +1,6 @@
 using MLDatasets, Random
 using BSON: @save, @load
+include("init.jl")
 
 function loadData(; hparams, dsName="MNIST01")
     if dsName=="testing"
@@ -14,6 +15,7 @@ function loadData(; hparams, dsName="MNIST01")
         train_x_1 = Array{Float32}(train_x[:, :, train_y .== 1] .≥ 0.5)
         train_x_5 = Array{Float32}(train_x[:, :, train_y .== 5] .≥ 0.5)
         train_x = cat(train_x_0, train_x_1, train_x_5, dims=3)
+#         train_x = cat(train_x_0, dims=3)
         @info size(train_x,3)
         idx = randperm(size(train_x,3))
         train_data = reshape(train_x, 28*28, :)[:,idx]
@@ -34,13 +36,22 @@ function saveModel(rbm, J, m, hparams; opt,  path = "0")
     end
 end
 
-function loadModel(path = "0")
+function loadModel(path = "0", dev = cpu)
     @load "./models/$path/RBM.bson" rbm
+    rbm = RBM([getfield(rbm, field) |> dev for field in fieldnames(RBM)]...)
     @load "./models/$path/J.bson" J
+    J = Weights([getfield(J, field) |> dev for field in fieldnames(Weights)]...)
     @load "./models/$path/m.bson" m
     @load "./models/$path/hparams.bson" hparams
     if hparams.optType == "Adam"
         @load "./models/$path/Opt.bson" opt
+        opt.w.m = opt.w.m |> dev
+        opt.w.v = opt.w.v |> dev
+        opt.a.m = opt.a.m |> dev
+        opt.a.v = opt.a.v |> dev
+        opt.b.m = opt.b.m |> dev
+        opt.b.v = opt.b.v |> dev
+#         opt = Adam([getfield(opt, field) |> dev for field in fieldnames(Adam)]...)
         return rbm, J, m, hparams, opt
     else
         return rbm, J, m, hparams, 0

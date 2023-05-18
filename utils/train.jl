@@ -42,6 +42,7 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
         append!(m.ΔaSDList, std(ΔaEpoch))
         append!(m.ΔbList, mean(ΔbEpoch))
         append!(m.ΔbSDList, std(ΔbEpoch))
+        append!(m.wMean, computeMatrixMean(J))
         if epoch % 1 == 0
             @info epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
             if plotSample
@@ -95,6 +96,7 @@ function trainAdam( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         append!(m.ΔaSDList, std(ΔaEpoch))
         append!(m.ΔbList, mean(ΔbEpoch))
         append!(m.ΔbSDList, std(ΔbEpoch))
+        append!(m.wMean, computeMatrixMean(J))
         if epoch % 1 == 0
             @info epoch, m.enList[end], m.enSDList[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
             if plotSample

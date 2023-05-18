@@ -40,7 +40,7 @@ function parseCommandLine()
       "--annealing", "-a"
         help = "Annealing?"
         arg_type = Bool
-        default = true
+        default = false
       "--pcd", "-D"
         help = "PCD?"
         arg_type = Bool
@@ -89,12 +89,10 @@ function main()
     end
     if dict["opt"]
         rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="Adam")
-        saveModel(rbm, J, m, hparams; opt, path)
     else
         rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
-        saveModel(rbm, J, m, hparams; path)
     end
-
+    saveModel(rbm, J, m, hparams; opt, path)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

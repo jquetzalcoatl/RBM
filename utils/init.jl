@@ -26,7 +26,7 @@ function initWeights(args)
 end
 
 function initModelStats()
-    mStats = ModelStats([],[],[],[],[],[],[],[])
+    mStats = ModelStats([],[],[],[],[],[],[],[],[])
     mStats
 end
 
