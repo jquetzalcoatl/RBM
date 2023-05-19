@@ -26,7 +26,7 @@ function initWeights(args)
 end
 
 function initModelStats()
-    mStats = ModelStats([],[],[],[],[],[],[],[],[])
+    mStats = ModelStats([[] for i in 1:length(fieldnames(ModelStats))]...)
     mStats
 end
 

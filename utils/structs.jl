@@ -31,6 +31,9 @@ mutable struct ModelStats
     ΔaSDList 
     ΔbSDList
     wMean
+    wVar
+    wTrMean
+    wTrVar
 end
 
 mutable struct WeightOpt

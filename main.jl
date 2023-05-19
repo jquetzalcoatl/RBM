@@ -7,7 +7,7 @@ using ArgParse, CUDA, Flux
 include("./utils/train.jl")
 
 function parseCommandLine()  
-    s = ArgParseSettings(description = "First Passage Process w/ Stochastic Resetting Via An External Potential")
+    s = ArgParseSettings(description = "Restricted Boltzmann Machine")
     @add_arg_table! s begin
       "--nv", "-v"
         help = "Number of visible nodes"
@@ -87,11 +87,12 @@ function main()
     if gpu_usage
         CUDA.device!(dict["dev"])
     end
-    if dict["opt"]
-        rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="Adam")
-    else
-        rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
-    end
+    rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"])
+#     if dict["opt"]
+#         rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="Adam")
+#     else
+#         rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
+#     end
     saveModel(rbm, J, m, hparams; opt, path)
 end
 
