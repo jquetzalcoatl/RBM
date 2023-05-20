@@ -65,6 +65,11 @@ function parseCommandLine()
         help = "Use ADAM? False for SGD"
         arg_type = Bool
         default = true
+      "--numbers", "-n"
+        help = "If using MNIST. Number labels to train on."
+        nargs = '*'
+        arg_type = Int64
+        default = [0, 1]
     end
   
     return parse_args(s) # the result is a Dict{String,Any
@@ -84,10 +89,11 @@ function main()
     PCD=dict["pcd"]
     path = dict["msg"]
     gpu_usage = dict["gpu"]
+    numbers = dict["numbers"]
     if gpu_usage
         CUDA.device!(dict["dev"])
     end
-    rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"])
+    rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"], numbers)
 #     if dict["opt"]
 #         rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="Adam")
 #     else

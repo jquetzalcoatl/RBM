@@ -15,17 +15,18 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
 
     if mode == "train"
         sampAv = Int(num/4)
-        pEn = plot(m.enList, yerr=m.enSDList, label="Energy per spin \n  T = $(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pEn = plot(m.enList, yerr=m.enSDList, label="Energy per spin \n  T = $(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
 
-        pLoss = plot(m.ΔwList, yerr=m.ΔwSDList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
-        pLoss = plot!(m.ΔbList, yerr=m.ΔbSDList, label="Δb", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pLoss = plot(m.ΔwList, yerr=m.ΔwSDList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pLoss = plot!(m.ΔbList, yerr=m.ΔbSDList, label="Δb", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
         pEigen = computeEigenonW(J, hparams)
-        pWMean = plot(m.wMean, yerr=m.wVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0)
+        pWMean = plot(m.wMean, yerr=m.wVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
 
-        avSamp = [σ.(mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3))[:,:,1] for i in 1:4]
+        # avSamp = [σ.(mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3))[:,:,1] for i in 1:4]
+        avSamp = [mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3)[:,:,1] for i in 1:4]
         hmSamp = heatmap(hcat(avSamp...))
         
         p1 = plot(pEn, pLoss, layout=(1,2))
@@ -34,7 +35,8 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
         f = plot(p,hmSamp, layout=(2,1), size=(500,600))
         display(f)
     elseif mode == "test"
-        avSamp = σ.(mean(samp, dims=3))[:,:,1]
+        # avSamp = σ.(mean(samp, dims=3))[:,:,1]
+        avSamp = mean(samp, dims=3)[:,:,1]
         hmSamp = heatmap(avSamp)
         display(hmSamp)
     end

@@ -8,7 +8,7 @@ include("en.jl")
 include("tools.jl")
 
 # Training function
-function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=40, optType="SGD")
+function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=40, optType="SGD", numbers=[0,1])
     
     rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t, gpu_usage, optType)
     if optType=="Adam"
@@ -17,7 +17,7 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
         opt = 0
     end
     dev = selectDev(hparams)
-    x = loadData(; hparams, dsName="MNIST01")
+    x = loadData(; hparams, dsName="MNIST01", numbers)
     PCD_state = x
     if annealing
         β = 1.0

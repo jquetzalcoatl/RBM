@@ -2,7 +2,7 @@ using MLDatasets, Random
 using BSON: @save, @load
 include("init.jl")
 
-function loadData(; hparams, dsName="MNIST01")
+function loadData(; hparams, dsName="MNIST01", numbers = [0,1])
     if dsName=="testing"
         #dummy DS
         dsSize=100
@@ -11,10 +11,19 @@ function loadData(; hparams, dsName="MNIST01")
     elseif dsName=="MNIST01"    
         train_x = MLDatasets.MNIST(split=:train)[:].features
         train_y = MLDatasets.MNIST(split=:train)[:].targets
-        train_x_0 = Array{Float32}(train_x[:, :, train_y .== 0] .≥ 0.5)
-        train_x_1 = Array{Float32}(train_x[:, :, train_y .== 1] .≥ 0.5)
-        train_x_5 = Array{Float32}(train_x[:, :, train_y .== 5] .≥ 0.5)
-        train_x = cat(train_x_0, train_x_1, train_x_5, dims=3)
+
+        train_x_samp = Array{Float32}(train_x[:, :, train_y .== numbers[1]] .≥ 0.5)
+        if size(numbers,1)>1
+            for idx in numbers[2:end]
+                train_x_tmp = Array{Float32}(train_x[:, :, train_y .== idx] .≥ 0.5)
+                train_x_samp = cat(train_x_samp, train_x_tmp, dims=3)
+            end
+        end
+        train_x = train_x_samp
+        # train_x_0 = Array{Float32}(train_x[:, :, train_y .== 0] .≥ 0.5)
+        # train_x_1 = Array{Float32}(train_x[:, :, train_y .== 1] .≥ 0.5)
+        # train_x_5 = Array{Float32}(train_x[:, :, train_y .== 5] .≥ 0.5)
+        # train_x = cat(train_x_0, train_x_1, train_x_5, dims=3)
 #         train_x = cat(train_x_0, dims=3)
         @info size(train_x,3)
         idx = randperm(size(train_x,3))
