@@ -53,6 +53,10 @@ function parseCommandLine()
         help = "Dir name"
         arg_type = String
         default = "0"
+      "--bdir"
+        help = "Base Dir name"
+        arg_type = String
+        default = "/home/javier/Projects/RBM/Results"
       "--gpu", "-g"
         help = "Use GPU?"
         arg_type = Bool
@@ -99,7 +103,7 @@ function main()
 #     else
 #         rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
 #     end
-    saveModel(rbm, J, m, hparams; opt, path)
+    saveModel(rbm, J, m, hparams; opt, path, basedir = dict["bdir"])
     loadModel(path, gpu)
 end
 
