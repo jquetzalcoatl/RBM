@@ -1,9 +1,4 @@
 using ArgParse, CUDA, Flux
-
-# include("./utils/init.jl")
-# include("./utils/structs.jl")
-# include("./utils/loader.jl")
-# include("./utils/en.jl")
 include("./utils/train.jl")
 
 function parseCommandLine()  
@@ -98,13 +93,7 @@ function main()
         CUDA.device!(dict["dev"])
     end
     rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"], numbers)
-#     if dict["opt"]
-#         rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="Adam")
-#     else
-#         rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
-#     end
     saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
-    loadModel(path, gpu)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
