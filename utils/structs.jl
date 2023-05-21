@@ -24,6 +24,7 @@ end
 mutable struct ModelStats
     enList
     enSDList
+    enZList
     ΔwList 
     ΔaList 
     ΔbList

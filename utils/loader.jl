@@ -1,6 +1,8 @@
 using MLDatasets, Random
 using BSON: @save, @load
 include("init.jl")
+include("adamOpt.jl")
+# include("structs.jl")
 
 function loadData(; hparams, dsName="MNIST01", numbers = [0,1])
     if dsName=="testing"
@@ -33,27 +35,27 @@ function loadData(; hparams, dsName="MNIST01", numbers = [0,1])
     x
 end
 
-function saveModel(rbm, J, m, hparams; opt,  path = "0")
-    isdir("./models/$path") || mkpath("./models/$path")
-    @info "./models/$path"
-    @save "./models/$path/RBM.bson" rbm
-    @save "./models/$path/J.bson" J
-    @save "./models/$path/m.bson" m
-    @save "./models/$path/hparams.bson" hparams
+function saveModel(rbm, J, m, hparams; opt,  path = "0", baseDir = "/home/javier/Projects/RBM/Results")
+    isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path")
+    @info "$(baseDir)/models/$path"
+    @save "$(baseDir)/models/$path/RBM.bson" rbm
+    @save "$(baseDir)/models/$path/J.bson" J
+    @save "$(baseDir)/models/$path/m.bson" m
+    @save "$(baseDir)/models/$path/hparams.bson" hparams
     if hparams.optType == "Adam"
-        @save "./models/$path/Opt.bson" opt
+        @save "$(baseDir)/models/$path/Opt.bson" opt
     end
 end
 
-function loadModel(path = "0", dev = cpu)
-    @load "./models/$path/RBM.bson" rbm
+function loadModel(path = "0", dev = cpu, baseDir = "/home/javier/Projects/RBM/Results")
+    @load "$(baseDir)/models/$path/RBM.bson" rbm
     rbm = RBM([getfield(rbm, field) |> dev for field in fieldnames(RBM)]...)
-    @load "./models/$path/J.bson" J
+    @load "$(baseDir)/models/$path/J.bson" J
     J = Weights([getfield(J, field) |> dev for field in fieldnames(Weights)]...)
-    @load "./models/$path/m.bson" m
-    @load "./models/$path/hparams.bson" hparams
+    @load "$(baseDir)/models/$path/m.bson" m
+    @load "$(baseDir)/models/$path/hparams.bson" hparams
     if hparams.optType == "Adam"
-        @load "./models/$path/Opt.bson" opt
+        @load "$(baseDir)/models/$path/Opt.bson" opt
         opt.w.m = opt.w.m |> dev
         opt.w.v = opt.w.v |> dev
         opt.a.m = opt.a.m |> dev

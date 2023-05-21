@@ -35,7 +35,8 @@ function initModel(; nv=10, nh=5, batch_size=4, lr=1.5, t=10, gpu_usage = false,
     rbm = genRBM(hparams)
     J = initWeights(hparams)
     mStats = initModelStats()
-    return rbm, J, mStats, hparams
+    rbmZ = genRBM(hparams)
+    return rbm, J, mStats, hparams, rbmZ
 end
 
 function initOptW(args, J)

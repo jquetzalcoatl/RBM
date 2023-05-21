@@ -60,11 +60,11 @@ function parseCommandLine()
       "--dev"
         help = "Select device"
         arg_type = Int64
-        default = 5
+        default = 1
       "--opt"
-        help = "Use ADAM? False for SGD"
-        arg_type = Bool
-        default = true
+        help = "Use ADAM? Or SGD"
+        arg_type = String
+        default = "Adam"
       "--numbers", "-n"
         help = "If using MNIST. Number labels to train on."
         nargs = '*'
@@ -93,13 +93,14 @@ function main()
     if gpu_usage
         CUDA.device!(dict["dev"])
     end
-    rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"], numbers)
+    rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"], numbers)
 #     if dict["opt"]
 #         rbm, J, m, hparams, opt = trainAdam( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="Adam")
 #     else
 #         rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
 #     end
     saveModel(rbm, J, m, hparams; opt, path)
+    loadModel(path, gpu)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

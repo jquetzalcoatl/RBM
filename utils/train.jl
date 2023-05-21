@@ -10,13 +10,15 @@ include("tools.jl")
 # Training function
 function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=40, optType="SGD", numbers=[0,1])
     
-    rbm, J, m, hparams = initModel(; nv, nh, batch_size, lr, t, gpu_usage, optType)
+    rbm, J, m, hparams, rbmZ = initModel(; nv, nh, batch_size, lr, t, gpu_usage, optType)
+
     if optType=="Adam"
         opt = initOptW(hparams, J) 
     elseif optType=="SGD"
         opt = 0
     end
     dev = selectDev(hparams)
+    
     x = loadData(; hparams, dsName="MNIST01", numbers)
     PCD_state = x
     if annealing
@@ -40,8 +42,10 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
             append!(ΔaEpoch, mean(Δa) |> cpu)
             append!(ΔbEpoch, mean(Δb) |> cpu)
         end
+        
         append!(m.enList, mean(enEpoch)/(hparams.nv+hparams.nh))
         append!(m.enSDList, std(enEpoch)/(hparams.nv+hparams.nh))
+        append!(m.enZList, genEnZSample(rbmZ, J, hparams, m; sampleSize = 1000, t_samp, β, dev)/(hparams.nv+hparams.nh))
         append!(m.ΔwList, mean(ΔwEpoch))
         append!(m.ΔwSDList, std(ΔwEpoch))
         append!(m.ΔaList, mean(ΔaEpoch))
@@ -52,6 +56,7 @@ function train( ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, p
         append!(m.wVar, MatrixVar(J.w))
         append!(m.wTrMean, MatrixMean(J.w'))
         append!(m.wTrVar, MatrixVar(J.w'))
+        
         if epoch % 1 == 0
             @info epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
             if plotSample
