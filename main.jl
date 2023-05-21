@@ -103,7 +103,7 @@ function main()
 #     else
 #         rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType="SGD")
 #     end
-    saveModel(rbm, J, m, hparams; opt, path, basedir = dict["bdir"])
+    saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     loadModel(path, gpu)
 end
 
