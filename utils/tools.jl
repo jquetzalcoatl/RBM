@@ -42,6 +42,23 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
         avSamp = mean(samp, dims=3)[:,:,1]
         hmSamp = heatmap(avSamp)
         display(hmSamp)
+    elseif mode == "results"
+        # pEn = plot(m.enList, yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pEn = plot(m.enList, ribbon=m.enSDList, lw=1.5, label="e T=$(round(1/(β+0.000001), digits=2))")
+        pEn = plot!(m.enZList, lw=1.5)
+
+        pLoss = plot(m.ΔwList, ribbon=m.ΔwSDList, label="Δw", lw=1.5)
+        pLoss = plot!(m.ΔaList, ribbon=m.ΔaSDList, label="Δa", lw=1.5)
+        pLoss = plot!(m.ΔbList, ribbon=m.ΔbSDList, label="Δb", lw=1.5)
+        
+        pEigen = computeEigenonW(J, hparams)
+        pWMean = plot(m.wMean, ribbon=m.wVar, label="w mean", lw=1.5)
+        pWMean = plot!(m.wTrMean, ribbon=m.wTrVar, label="w mean", lw=1.5)
+        
+        p1 = plot(pEn, pLoss, layout=(1,2))
+        p2 = plot(pEigen, pWMean, layout=(1,2))
+        p = plot(p1, p2, layout=(2,1), size=(500,600))
+        display(p)
     end
 end
 
@@ -108,7 +125,7 @@ function genEnZSample(rbmZ, J, hparams, m; sampleSize = 1000, t_samp = 10, β = 
         rbmZ.h = Array{Float32}(sign.(rand(hparams.nh, sampleSize) |> dev .< σ.(β .* (J.w' * rbmZ.v .+ J.b)))) |> dev 
         rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * rbmZ.h .+ J.a)))) |> dev  
     end
-    avgEn(rbmZ,J)
+    avgEn2(rbm,J, hparams)
 end
 
 

@@ -37,22 +37,26 @@ end
 
 function saveModel(rbm, J, m, hparams; opt,  path = "0", baseDir = "/home/javier/Projects/RBM/Results")
     isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path")
-    @info "$(baseDir)/models/$path"
+    # @info "$(baseDir)/models/$path"
     save("$(baseDir)/models/$path/RBM.jld", "rbm", RBM(rbm.v |> cpu, rbm.h |> cpu) )
     save("$(baseDir)/models/$path/J.jld", "J", Weights(J.w |> cpu, J.a |> cpu, J.b |> cpu) )
     save("$(baseDir)/models/$path/m.jld", "m", m)
     save("$(baseDir)/models/$path/hparams.jld", "hparams", hparams)
     if hparams.optType == "Adam"
-        opt.w.theta = opt.w.theta |> cpu
-        opt.w.m = opt.w.m |> cpu
-        opt.w.v = opt.w.v |> cpu
-        opt.a.theta = opt.a.theta |> cpu
-        opt.a.m = opt.a.m |> cpu
-        opt.a.v = opt.a.v |> cpu
-        opt.b.theta = opt.b.theta |> cpu
-        opt.b.m = opt.b.m |> cpu
-        opt.b.v = opt.b.v |> cpu
-        save("$(baseDir)/models/$path/Opt.jld", "opt", opt)
+        optW = Adam(opt.w.theta |> cpu, opt.w.m |> cpu, opt.w.v |> cpu, opt.w.b1, opt.w.b2, opt.w.a, opt.w.eps, opt.w.t)
+        opta = Adam(opt.a.theta |> cpu, opt.a.m |> cpu, opt.a.v |> cpu, opt.a.b1, opt.a.b2, opt.a.a, opt.a.eps, opt.a.t)
+        optb = Adam(opt.b.theta |> cpu, opt.b.m |> cpu, opt.b.v |> cpu, opt.b.b1, opt.b.b2, opt.b.a, opt.b.eps, opt.b.t)
+        
+        # optO.w.theta = optO.w.theta |> cpu
+        # optO.w.m = optO.w.m |> cpu
+        # optO.w.v = optO.w.v |> cpu
+        # optO.a.theta = optO.a.theta |> cpu
+        # optO.a.m = optO.a.m |> cpu
+        # optO.a.v = optO.a.v |> cpu
+        # optO.b.theta = optO.b.theta |> cpu
+        # optO.b.m = optO.b.m |> cpu
+        # optO.b.v = optO.b.v |> cpu
+        save("$(baseDir)/models/$path/Opt.jld", "opt", WeightOpt(optW, opta, optb))
     end
 end
 
@@ -81,6 +85,18 @@ function loadModel(path = "0", dev = cpu, baseDir = "/home/javier/Projects/RBM/R
         return rbm, J, m, hparams, 0
     end
 end
+
+function saveDict(dict; path = "0", baseDir = "/home/javier/Projects/RBM/Results")
+    isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path")
+    save("$(baseDir)/models/$path/dict.jld", "dict", dict)
+end
+
+function loadDict(path = "0", baseDir = "/home/javier/Projects/RBM/Results")
+    dict = load("$(baseDir)/models/$path/dict.jld", "dict")
+    return dict
+end
+    
+    
 
 # function saveModel(rbm, J, m, hparams; opt,  path = "0", baseDir = "/home/javier/Projects/RBM/Results")
 #     isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path")

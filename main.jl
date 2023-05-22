@@ -1,4 +1,6 @@
 using ArgParse, CUDA, Flux
+using Logging
+
 include("./utils/train.jl")
 
 function parseCommandLine()  
@@ -91,9 +93,16 @@ function main()
     numbers = dict["numbers"]
     if gpu_usage
         CUDA.device!(dict["dev"])
+        ENV["JULIA_CUDA_HARD_MEMORY_LIMIT"]="1GiB"
     end
-    rbm, J, m, hparams, opt = train( ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"], numbers)
+    
+    isdir(dict["bdir"] * "/models/$path") || mkpath(dict["bdir"] * "/models/$path")
+    logger = SimpleLogger(open(dict["bdir"] * "/models/$path/log.txt", "w+"))
+    global_logger(logger)
+    
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"], numbers)
     saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
+    saveDict(dict; path, baseDir = dict["bdir"])
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

@@ -11,7 +11,8 @@ E(|v⟩, |h⟩) = - ⟨v|a⟩ - ⟨b|h⟩ - ⟨v|W|a⟩
 # en(rbm, J) = mean(- (rbm.v' * J.a + (J.b' * rbm.h)' + [(rbm.v' * J.w * rbm.h)[i,i] for i in 1:hparams.batch_size]))
 en(rbm, J) = - mean(rbm.v' * J.a + (J.b' * rbm.h)' + diag(rbm.v' * J.w * rbm.h))
 H(rbm, J) = - (rbm.v' * J.a + (J.b' * rbm.h)' + diag(rbm.v' * J.w * rbm.h))
-avgEn(rbm,J) = sum(H(rbm, J) .* exp.(H(rbm, J))) / sum(exp.(H(rbm,J)))
+avgEn(rbm,J) = sum(H(rbm, J) .* exp.(-H(rbm, J))) / sum(exp.(- H(rbm,J)))
+avgEn2(rbm,J, hparams) = sum(H(rbm, J) .* exp.(-H(rbm, J)/(hparams.nv+hparams.nh))) / sum(exp.(-H(rbm,J)/(hparams.nv+hparams.nh)))
 @doc raw"""
 Loss function
 ```math
