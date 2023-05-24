@@ -21,24 +21,34 @@ Loss function
 Δbₗ = β (⟨hₗ⟩_{p(h),p_{data}} - ⟨hₗ⟩_{p(v,h)})
 ```
 """
-function loss(rbm, J, x; hparams, β=1, dev)
-    rbm.v = x |> dev
-    rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+function loss(rbm, J, x_data, x_recon; hparams, β=1, dev)
+    rbm.v = x_data |> dev
+    rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
 
-    vh_data = (rbm.v * rbm.h')/hparams.batch_size
-    v_data = reshape(mean(rbm.v, dims=2),:)/hparams.batch_size
-    h_data = reshape(mean(rbm.h, dims=2),:)/hparams.batch_size
+    Z = sum(exp.(H(rbm, J)/(hparams.nv+hparams.nh)))
+    # vh_data = (rbm.v * rbm.h')/hparams.batch_size
+    # vh_data = (rbm.v * Diagonal(exp.(H(rbm, J))) * dev(Array(rbm.h'))) / sum(exp.(H(rbm, J))) / hparams.batch_size
+    vh_data = (rbm.v * Diagonal(exp.(H(rbm, J)/(hparams.nv+hparams.nh))) * CuArray(rbm.h')) / Z # / hparams.batch_size
+    # v_data = reshape(mean(rbm.v, dims=2),:)/hparams.batch_size
+    v_data = (rbm.v * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z # / hparams.batch_size
+    # h_data = reshape(mean(rbm.h, dims=2),:)/hparams.batch_size
+    h_data = (rbm.h * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z # / hparams.batch_size
 
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev
+    # rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev
+    rbm.v = x_recon |> dev
 
     for i in 1:hparams.t
-        rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-        rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
     end
 
-    vh_recontruct = (rbm.v * rbm.h')/hparams.batch_size
-    v_reconstruct = reshape(mean(rbm.v, dims=2),:)/hparams.batch_size
-    h_reconstruct = reshape(mean(rbm.h, dims=2),:)/hparams.batch_size
+    # vh_recontruct = (rbm.v * rbm.h')/hparams.batch_size
+    # vh_recontruct = rbm.v * Diagonal(exp.(H(rbm, J))) * dev(Array(rbm.h')) / sum(exp.(H(rbm, J))) / hparams.batch_size
+    vh_recontruct = rbm.v * Diagonal(exp.(H(rbm, J)/(hparams.nv+hparams.nh))) * CuArray(rbm.h') / Z #/ hparams.batch_size
+    # v_reconstruct = reshape(mean(rbm.v, dims=2),:)/hparams.batch_size
+    v_reconstruct = rbm.v * exp.(H(rbm, J)/(hparams.nv+hparams.nh)) / Z #/hparams.batch_size
+    # h_reconstruct = reshape(mean(rbm.h, dims=2),:)/hparams.batch_size
+    h_reconstruct = rbm.h * exp.(H(rbm, J)/(hparams.nv+hparams.nh)) / Z #/hparams.batch_size
 
     Δw = vh_data - vh_recontruct
     Δa = v_data - v_reconstruct

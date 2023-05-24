@@ -2,8 +2,8 @@ using LinearAlgebra, Flux, CUDA
 include("adamOpt.jl")
 include("en.jl")
 
-function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", dev)
-    
+function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train", dev)
+    num=25
     xh = rand(hparams.nh, num) |> dev
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
 
@@ -15,9 +15,9 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
     samp = reshape(rbm.v, 28,28,:) |> cpu;
 
     if mode == "train"
-        sampAv = Int(num/4)
-        pEn = plot(m.enList, yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        pEn = plot!(m.enZList, markersize=7, markershapes = :circle, lw=1.5)
+        # sampAv = Int(num/4)
+        pEn = plot(.- m.enList .- log.(m.Z), yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pEn = plot!(.- m.enZList .- log.(m.Z), markersize=7, markershapes = :circle, lw=1.5)
 
         pLoss = plot(m.ΔwList, yerr=m.ΔwSDList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
@@ -29,8 +29,10 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
         
 
         # avSamp = [σ.(mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3))[:,:,1] for i in 1:4]
-        avSamp = [mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3)[:,:,1] for i in 1:4]
-        hmSamp = heatmap(hcat(avSamp...))
+        # avSamp = [mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3)[:,:,1] for i in 1:4]
+        # hmSamp = heatmap(hcat(avSamp...))
+        avSamp = cat([cat([samp[:,:,i+j*5] for i in 1:5]..., dims=2) for j in 0:4]...,dims=1)
+        hmSamp = heatmap(avSamp)
         
         p1 = plot(pEn, pLoss, layout=(1,2))
         p2 = plot(pEigen, pWMean, layout=(1,2))
@@ -39,7 +41,8 @@ function genSample(rbm, J, hparams, m; num = 4, t = 10, β = 1, mode = "train", 
         display(f)
     elseif mode == "test"
         # avSamp = σ.(mean(samp, dims=3))[:,:,1]
-        avSamp = mean(samp, dims=3)[:,:,1]
+        # avSamp = mean(samp, dims=3)[:,:,1]
+        avSamp = cat([cat([samp[:,:,i+j*5] for i in 1:5]..., dims=2) for j in 0:4]...,dims=1)
         hmSamp = heatmap(avSamp)
         display(hmSamp)
     elseif mode == "results"
@@ -76,8 +79,8 @@ end
 
 
 function JwByComponent(rbm, J, hparams; num = 4, t = 10, β = 1, idx = 1, dev)
-    F = LinearAlgebra.svd(J.w)
-    Jw = F.S[idx] * F.U[:,idx] * F.V[:,idx]'
+    F = LinearAlgebra.svd(J.w, full=true)
+    Jw = F.S[idx] * F.U[:,idx] * F.V[:,idx]'    # I could also have used F.Vt instead of F.V'
     xh = rand(hparams.nh, num) |> dev
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (Jw * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
 
@@ -125,7 +128,35 @@ function genEnZSample(rbmZ, J, hparams, m; sampleSize = 1000, t_samp = 10, β = 
         rbmZ.h = Array{Float32}(sign.(rand(hparams.nh, sampleSize) |> dev .< σ.(β .* (J.w' * rbmZ.v .+ J.b)))) |> dev 
         rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * rbmZ.h .+ J.a)))) |> dev  
     end
-    avgEn2(rbm,J, hparams)
+    avgEn2(rbmZ,J, hparams)
+end
+
+function amplitudes(J, hparams; num=50, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
+    F = LinearAlgebra.svd(J.w, full=true)
+    batchV = zeros(hparams.nv)
+    batchH = zeros(hparams.nh)
+    
+    Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
+    a = abs.(F.U' * Xv)
+    c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
+    batchV =  hcat(batchV, reshape(c,:));
+    # batchV =  hcat(batchV, reshape(mean(abs.(F.U' * Xv), dims=2),:));
+    
+    for i in 1:t_samp
+        Xh = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(β .* (J.w' * Xv .+ J.b)))) |> dev 
+        a = abs.(F.V' * Xh)
+        c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
+        batchH =  hcat(batchH, reshape(c,:))
+        # batchH =  hcat(batchH, reshape(mean(abs.(F.V' * Xh), dims=2),:))
+        
+        Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * Xh .+ J.a)))) |> dev 
+        a = abs.(F.U' * Xv)
+        c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
+        batchV =  hcat(batchV, reshape(c,:));
+        # batchV =  hcat(batchV, reshape(mean(abs.(F.U' * Xv), dims=2),:))
+        
+    end
+    return batchV[:,2:end], batchH[:,2:end]
 end
 
 

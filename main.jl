@@ -29,7 +29,7 @@ function parseCommandLine()
       "--gibbs", "-t"
         help = "Gibbs sampling length"
         arg_type = Int64
-        default = 10
+        default = 100
       "--plotsample", "-p"
         help = "Plot samples"
         arg_type = Bool
@@ -57,7 +57,7 @@ function parseCommandLine()
       "--gpu", "-g"
         help = "Use GPU?"
         arg_type = Bool
-        default = false
+        default = true
       "--dev"
         help = "Select device"
         arg_type = Int64
