@@ -9,7 +9,13 @@ include("en.jl")
 include("tools.jl")
 
 # Training function
-function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=40, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true)
+function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=25, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true)
+    try
+        Int(sqrt(num))
+    catch
+        @warn "num's root needs to be an integer."
+        return 0,0,0,0,0
+    end
     
     rbm, J, m, hparams, rbmZ = initModel(; nv, nh, batch_size, lr, t, gpu_usage, optType)
 
@@ -47,7 +53,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         
         append!(m.enList, mean(enEpoch)/(hparams.nv+hparams.nh))
         append!(m.enSDList, std(enEpoch)/(hparams.nv+hparams.nh))
-        append!(m.enZList, genEnZSample(rbmZ, J, hparams, m; sampleSize = 1000, t_samp, β, dev)/(hparams.nv+hparams.nh))
+        append!(m.enZList, genEnZSample(rbmZ, J, hparams, m; sampleSize = hparams.batch_size, t_samp, β, dev)/(hparams.nv+hparams.nh))
         append!(m.ΔwList, mean(ΔwEpoch))
         append!(m.ΔwSDList, std(ΔwEpoch))
         append!(m.ΔaList, mean(ΔaEpoch))
@@ -63,9 +69,9 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         if epoch % snapshot == 0
             @info now(), epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
             savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"]) : nothing
-            if plotSample
-                genSample(rbm, J, hparams, m; num, β, t=t_samp, dev)
-            end
+            # if plotSample
+            genSample(rbm, J, hparams, m; num, β, t=t_samp, plotSample, epoch, dict, dev)
+            # end
         end
         if annealing
             β = β + 1/epochs

@@ -100,7 +100,7 @@ function main()
     logger = SimpleLogger(open(dict["bdir"] * "/models/$path/log.txt", "w+"))
     global_logger(logger)
     
-    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=40, optType=dict["opt"], numbers)
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=100, optType=dict["opt"], numbers)
     saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     saveDict(dict; path, baseDir = dict["bdir"])
 end

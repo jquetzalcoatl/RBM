@@ -2,8 +2,8 @@ using LinearAlgebra, Flux, CUDA
 include("adamOpt.jl")
 include("en.jl")
 
-function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train", dev)
-    num=25
+function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train", plotSample=true, epoch=0, dict, dev)
+    lnum = Int(sqrt(num))
     xh = rand(hparams.nh, num) |> dev
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
 
@@ -31,24 +31,29 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
         # avSamp = [σ.(mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3))[:,:,1] for i in 1:4]
         # avSamp = [mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3)[:,:,1] for i in 1:4]
         # hmSamp = heatmap(hcat(avSamp...))
-        avSamp = cat([cat([samp[:,:,i+j*5] for i in 1:5]..., dims=2) for j in 0:4]...,dims=1)
+        avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
         hmSamp = heatmap(avSamp)
         
         p1 = plot(pEn, pLoss, layout=(1,2))
         p2 = plot(pEigen, pWMean, layout=(1,2))
         p = plot(p1, p2, layout=(2,1))
         f = plot(p,hmSamp, layout=(2,1), size=(500,600))
-        display(f)
+        if plotSample
+            display(f)
+        else
+            isdir(dict["bdir"] * "/models/$(dict["msg"])/Plots") || mkpath(dict["bdir"] * "/models/$(dict["msg"])/Plots")
+            savefig(f, dict["bdir"] * "/models/$(dict["msg"])/Plots/$epoch.png")
+        end
     elseif mode == "test"
         # avSamp = σ.(mean(samp, dims=3))[:,:,1]
         # avSamp = mean(samp, dims=3)[:,:,1]
-        avSamp = cat([cat([samp[:,:,i+j*5] for i in 1:5]..., dims=2) for j in 0:4]...,dims=1)
+        avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
         hmSamp = heatmap(avSamp)
         display(hmSamp)
     elseif mode == "results"
         # pEn = plot(m.enList, yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        pEn = plot(m.enList, ribbon=m.enSDList, lw=1.5, label="e T=$(round(1/(β+0.000001), digits=2))")
-        pEn = plot!(m.enZList, lw=1.5)
+        pEn = plot(.- m.enList .- log.(m.Z), ribbon=m.enSDList, lw=1.5, label="e T=$(round(1/(β+0.000001), digits=2))")
+        pEn = plot!(.- m.enZList .- log.(m.Z), lw=1.5)
 
         pLoss = plot(m.ΔwList, ribbon=m.ΔwSDList, label="Δw", lw=1.5)
         pLoss = plot!(m.ΔaList, ribbon=m.ΔaSDList, label="Δa", lw=1.5)

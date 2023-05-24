@@ -23,16 +23,28 @@ Loss function
 """
 function loss(rbm, J, x_data, x_recon; hparams, β=1, dev)
     rbm.v = x_data |> dev
+    
     rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-
     Z = sum(exp.(H(rbm, J)/(hparams.nv+hparams.nh)))
-    # vh_data = (rbm.v * rbm.h')/hparams.batch_size
-    # vh_data = (rbm.v * Diagonal(exp.(H(rbm, J))) * dev(Array(rbm.h'))) / sum(exp.(H(rbm, J))) / hparams.batch_size
-    vh_data = (rbm.v * Diagonal(exp.(H(rbm, J)/(hparams.nv+hparams.nh))) * CuArray(rbm.h')) / Z # / hparams.batch_size
-    # v_data = reshape(mean(rbm.v, dims=2),:)/hparams.batch_size
-    v_data = (rbm.v * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z # / hparams.batch_size
-    # h_data = reshape(mean(rbm.h, dims=2),:)/hparams.batch_size
-    h_data = (rbm.h * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z # / hparams.batch_size
+        
+    vh_data = (rbm.v * Diagonal(exp.(H(rbm, J)/(hparams.nv+hparams.nh))) * CuArray(rbm.h')) / Z # / hparams.batch_size 
+    v_data = (rbm.v * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z
+    h_data = (rbm.h * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z
+    for i in 1:10
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+        Z = sum(exp.(H(rbm, J)/(hparams.nv+hparams.nh)))
+            
+        vh_data_tmp = (rbm.v * Diagonal(exp.(H(rbm, J)/(hparams.nv+hparams.nh))) * CuArray(rbm.h')) / Z
+        v_data_tmp = (rbm.v * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z
+        h_data_tmp = (rbm.h * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z
+    
+        vh_data = cat(vh_data, vh_data_tmp, dims=3)
+        v_data = cat(v_data, v_data_tmp, dims=3)
+        h_data = cat(h_data, h_data_tmp, dims=3)
+    end
+    vh_data = reshape(mean(vh_data, dims=3), hparams.nv, hparams.nh)
+    v_data = reshape(mean(v_data, dims=3), hparams.nv)
+    h_data = reshape(mean(h_data, dims=3), hparams.nh)
 
     # rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev
     rbm.v = x_recon |> dev
