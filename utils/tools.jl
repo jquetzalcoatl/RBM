@@ -32,7 +32,7 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
         # avSamp = [mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3)[:,:,1] for i in 1:4]
         # hmSamp = heatmap(hcat(avSamp...))
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
-        hmSamp = heatmap(avSamp)
+        hmSamp = heatmap(permutedims(avSamp,(2,1)))
         
         p1 = plot(pEn, pLoss, layout=(1,2))
         p2 = plot(pEigen, pWMean, layout=(1,2))
@@ -48,7 +48,7 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
         # avSamp = σ.(mean(samp, dims=3))[:,:,1]
         # avSamp = mean(samp, dims=3)[:,:,1]
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
-        hmSamp = heatmap(avSamp)
+        hmSamp = heatmap(permutedims(avSamp,(2,1)))
         display(hmSamp)
     elseif mode == "results"
         # pEn = plot(m.enList, yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
@@ -75,7 +75,7 @@ function computeEigenonW(J, hparams)
     lambda = F.S |> cpu
     f = plot(lambda, markershape=:circle, scale=:log10, label="λ Jw", markersize=7, 
     markershapes = :circle, lw=1.5, markerstrokewidth=0, frame=:box)
-    W = randn(hparams.nv, hparams.nh) ./ √(2*hparams.nh);
+    W = randn(hparams.nv, hparams.nh) .* 0.1 / √(hparams.nh);
     F = LinearAlgebra.svd(W);
     f = plot!(F.S, markershape=:circle, scale=:log10, label="λ rdm", markersize=7, 
     markershapes = :circle, lw=1.5, markerstrokewidth=0, frame=:box)

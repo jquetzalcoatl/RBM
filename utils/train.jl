@@ -9,7 +9,7 @@ include("en.jl")
 include("tools.jl")
 
 # Training function
-function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, PCD=true, gpu_usage = false, t_samp=100, num=25, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true)
+function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, learnType="Rdm", gpu_usage = false, t_samp=100, num=25, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true, γ=0.001)
     try
         Int(sqrt(num))
     catch
@@ -17,7 +17,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         return 0,0,0,0,0
     end
     
-    rbm, J, m, hparams, rbmZ = initModel(; nv, nh, batch_size, lr, t, gpu_usage, optType)
+    rbm, J, m, hparams, rbmZ = initModel(; nv, nh, batch_size, lr, γ, t, gpu_usage, optType)
 
     if optType=="Adam"
         opt = initOptW(hparams, J) 
@@ -27,7 +27,12 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     dev = selectDev(hparams)
     
     x = loadData(; hparams, dsName="MNIST01", numbers)
-    PCD_state = x
+    if learnType == "Rdm"
+        x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
+    elseif learnType == "CD" || learnType == "PCD"
+        x_Gibbs = x
+    end
+    
     if annealing
         β = 1.0
     end 
@@ -37,9 +42,9 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         
 #         Threads.@threads 
         for i in eachindex(x)
-            Δw, Δa, Δb = loss(rbm, J, x[i], PCD_state[i]; hparams, β, dev)
-            if PCD
-                PCD_state[i] = rbm.v |> cpu
+            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, dev)
+            if learnType == "PCD"
+                x_Gibbs[i] = rbm.v |> cpu
             end
 
             updateJ!(J, Δw, Δa, Δb, opt; hparams)
@@ -76,9 +81,13 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         if annealing
             β = β + 1/epochs
         end
-        if PCD
-            PCD_state = reshuffle(PCD_state; hparams)
+
+        if learnType == "Rdm"
+            x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
+        else
+            x_Gibbs = reshuffle(x_Gibbs; hparams)
         end
+        x = reshuffle(x; hparams)
     end
     rbm, J, m, hparams, opt
 end
@@ -91,7 +100,7 @@ function continuetrain(dict, modelname ; epochs=50, plotSample=false, t_samp=100
     t=dict["gibbs"]
     annealing=dict["annealing"]
     β=dict["beta"]
-    PCD=dict["pcd"]
+    learnType=dict["pcd"]
     gpu_usage=dict["gpu"]
     optType=dict["opt"]
     numbers=dict["numbers"]
@@ -107,7 +116,12 @@ function continuetrain(dict, modelname ; epochs=50, plotSample=false, t_samp=100
     rbmZ = genRBM(hparams)
     
     x = loadData(; hparams, dsName="MNIST01", numbers)
-    PCD_state = x
+    if learnType == "Rdm"
+        x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
+    elseif learnType == "CD" || learnType == "PCD"
+        x_Gibbs = x
+    end
+    
     if annealing
         β = 1.0
     end 
@@ -117,9 +131,9 @@ function continuetrain(dict, modelname ; epochs=50, plotSample=false, t_samp=100
         
 #         Threads.@threads 
         for i in eachindex(x)
-            Δw, Δa, Δb = loss(rbm, J, x[i], PCD_state[i]; hparams, β, dev)
-            if PCD
-                PCD_state[i] = rbm.v |> cpu
+            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, dev)
+            if learnType == "PCD"
+                x_Gibbs[i] = rbm.v |> cpu
             end
 
             updateJ!(J, Δw, Δa, Δb, opt; hparams)
@@ -154,15 +168,18 @@ function continuetrain(dict, modelname ; epochs=50, plotSample=false, t_samp=100
         if annealing
             β = β + 1/epochs
         end
-        if PCD
-            PCD_state = reshuffle(PCD_state; hparams)
+        if learnType == "Rdm"
+            x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
+        else
+            x_Gibbs = reshuffle(x_Gibbs; hparams)
         end
+        x = reshuffle(x; hparams)
     end
     rbm, J, m, hparams, opt
 end
 
-function reshuffle(PCD_state; hparams)
-    cat_state = cat(PCD_state..., dims=2)
+function reshuffle(x; hparams)
+    cat_state = cat(x..., dims=2)
     idx = randperm(size(cat_state,2))
     new_state = cat_state[:,idx]
     [new_state[:,i] for i in Iterators.partition(1:size(new_state,2), hparams.batch_size)]

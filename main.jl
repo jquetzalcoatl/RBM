@@ -25,7 +25,7 @@ function parseCommandLine()
       "--lr", "-l"
         help = "Learning rate"
         arg_type = Float64
-        default = 0.001
+        default = 0.0001
       "--gibbs", "-t"
         help = "Gibbs sampling length"
         arg_type = Int64
@@ -38,11 +38,11 @@ function parseCommandLine()
         help = "Annealing?"
         arg_type = Bool
         default = false
-      "--pcd", "-D"
-        help = "PCD?"
-        arg_type = Bool
-        default = true
-      "--beta", "-c"
+      "--learn", "-D"
+        help = "Type of learning? Rdm, CD, PCD"
+        arg_type = String
+        default = "Rdm"
+      "--beta", "-T"
         help = "Inverse Temp"
         arg_type = Float64
         default = 1.0
@@ -70,7 +70,7 @@ function parseCommandLine()
         help = "If using MNIST. Number labels to train on."
         nargs = '*'
         arg_type = Int64
-        default = [0, 1]
+        default = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     end
   
     return parse_args(s) # the result is a Dict{String,Any
@@ -87,7 +87,7 @@ function main()
     plotSample=false 
     annealing=dict["annealing"] 
     β=dict["beta"]
-    PCD=dict["pcd"]
+    learnType=dict["learn"]
     path = dict["msg"]
     gpu_usage = dict["gpu"]
     numbers = dict["numbers"]
@@ -100,7 +100,7 @@ function main()
     logger = SimpleLogger(open(dict["bdir"] * "/models/$path/log.txt", "w+"))
     global_logger(logger)
     
-    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, PCD, gpu_usage, t_samp=100, num=100, optType=dict["opt"], numbers)
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, learnType, gpu_usage, t_samp=100, num=100, optType=dict["opt"], numbers)
     saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     saveDict(dict; path, baseDir = dict["bdir"])
 end

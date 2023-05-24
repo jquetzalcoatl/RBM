@@ -5,6 +5,7 @@ using Parameters: @with_kw, @unpack
     nh::Int = 100
     batch_size::Int=25
     lr::Float64 = 0.0002
+    γ::Float64 = 0.001
     t::Int = 10
     gpu_usage::Bool = false
     optType::String = "SGD"
