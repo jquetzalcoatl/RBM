@@ -21,7 +21,7 @@ end
 function Adam(theta, a; dev)
   m   = zeros(size(theta)) |> dev
   v   = zeros(size(theta)) |> dev
-  b1  = 0.0
+  b1  = 0.9
   b2  = 0.999
 #   a   = 0.001
   eps = 1e-6

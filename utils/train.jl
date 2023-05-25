@@ -9,7 +9,7 @@ include("en.jl")
 include("tools.jl")
 
 # Training function
-function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, learnType="Rdm", gpu_usage = false, t_samp=100, num=25, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true, γ=0.001)
+function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, learnType="Rdm", gpu_usage = false, t_samp=100, num=25, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true, γ=0.001, logging=false, io=nothing)
     try
         Int(sqrt(num))
     catch
@@ -70,24 +70,26 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         append!(m.wTrMean, MatrixMean(J.w'))
         append!(m.wTrVar, MatrixVar(J.w'))
         append!(m.Z, mean(ZEpoch))
-        
-        if epoch % snapshot == 0
-            @info now(), epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
+
+        @info string(now())[1:end-4], epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
+        logging ? flush(io) : nothing
+        if epoch % snapshot == 0 
             savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"]) : nothing
-            # if plotSample
-            genSample(rbm, J, hparams, m; num, β, t=t_samp, plotSample, epoch, dict, dev)
-            # end
+            genSample(rbm, J, hparams, m; num, β, t=t_samp, plotSample, epoch, dict, dev)         
         end
         if annealing
             β = β + 1/epochs
         end
-
+        
+        x = reshuffle(x; hparams)
         if learnType == "Rdm"
             x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
-        else
+        elseif learnType == "CD"
+            x_Gibbs = x #reshuffle(x_Gibbs; hparams)
+        elseif learnType == "PCD"
             x_Gibbs = reshuffle(x_Gibbs; hparams)
         end
-        x = reshuffle(x; hparams)
+        
     end
     rbm, J, m, hparams, opt
 end

@@ -97,12 +97,14 @@ function main()
     end
     
     isdir(dict["bdir"] * "/models/$path") || mkpath(dict["bdir"] * "/models/$path")
-    logger = SimpleLogger(open(dict["bdir"] * "/models/$path/log.txt", "w+"))
+    io = open(dict["bdir"] * "/models/$path/log.txt", "w+")
+    logger = SimpleLogger(io)
     global_logger(logger)
     
-    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, learnType, gpu_usage, t_samp=100, num=100, optType=dict["opt"], numbers)
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], numbers, logging=true, io)
     saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     saveDict(dict; path, baseDir = dict["bdir"])
+    close(io)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

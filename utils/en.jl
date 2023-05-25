@@ -4,7 +4,7 @@ include("adamOpt.jl")
 @doc raw"""
 Energy of Binary RBM
 ```math
-E(|v⟩, |h⟩) = - ⟨v|a⟩ - ⟨b|h⟩ - ⟨v|W|a⟩
+E(|v⟩, |h⟩) = - ⟨v|a⟩ - ⟨b|h⟩ - ⟨v|W|h⟩
 ```
 """
 # en(rbm, J) = - (rbm.v' * J.a + J.b' * rbm.h + rbm.v' * J.w * rbm.h)
@@ -13,6 +13,14 @@ en(rbm, J) = - mean(rbm.v' * J.a + (J.b' * rbm.h)' + diag(rbm.v' * J.w * rbm.h))
 H(rbm, J) = - (rbm.v' * J.a + (J.b' * rbm.h)' + diag(rbm.v' * J.w * rbm.h))
 avgEn(rbm,J) = sum(H(rbm, J) .* exp.(-H(rbm, J))) / sum(exp.(- H(rbm,J)))
 avgEn2(rbm,J, hparams) = sum(H(rbm, J) .* exp.(-H(rbm, J)/(hparams.nv+hparams.nh))) / sum(exp.(-H(rbm,J)/(hparams.nv+hparams.nh)))
+
+
+function H_effective(J,hparams)
+    F = LinearAlgebra.svd(J.w, full=true);
+    Hamiltonian = -( sum([J.a * F.V[:,i]' for i in 1:hparams.nh]) + sum([F.U[:,1] * reshape(J.b,1,:) for i in 1:hparams.nv]) + F.U * dev(cat(Diagonal(F.S), (zeros(size(F.U,1)-size(F.Vt,1),size(F.Vt,1))),dims=1)) * F.Vt)
+    return Hamiltonian
+end
+
 @doc raw"""
 Loss function
 ```math
@@ -30,7 +38,7 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, dev)
     vh_data = (rbm.v * Diagonal(exp.(H(rbm, J)/(hparams.nv+hparams.nh))) * CuArray(rbm.h')) / Z # / hparams.batch_size 
     v_data = (rbm.v * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z
     h_data = (rbm.h * exp.(H(rbm, J)/(hparams.nv+hparams.nh))) / Z
-    for i in 1:10
+    for i in 1:2
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
         Z = sum(exp.(H(rbm, J)/(hparams.nv+hparams.nh)))
             
