@@ -164,6 +164,37 @@ function amplitudes(J, hparams; num=50, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
     return batchV[:,2:end], batchH[:,2:end]
 end
 
+function correlation(rbm, J, hparams; t_therm=10000, t_corr=10000)
+    corr = []
+    xh = rand(hparams.nh) |> dev
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * xh .+ J.a)))) |> dev
+
+    for i in 1:t_therm
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+    end
+
+    rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+    m = σ.(β .* (J.w * rbm.h .+ J.a))
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< m)) |> dev
+    
+    Δv0 = m .- mean(m, dims=1)
+    Δv = Δv0
+    C0 = (Δv0' * Δv0)/hparams.nv
+    Ct = (Δv0' * Δv)/hparams.nv
+    append!(corr, Ct/C0)
+    for i in 1:t_corr
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+        m = σ.(β .* (J.w * rbm.h .+ J.a))
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< m)) |> dev
+        Δv = m .- mean(m, dims=1)
+        Ct = (Δv0' * Δv)/hparams.nv
+        
+        append!(corr, Ct/C0)
+    end
+    corr
+end
+
 
 
 
