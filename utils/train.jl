@@ -9,7 +9,7 @@ include("en.jl")
 include("tools.jl")
 
 # Training function
-function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, learnType="Rdm", gpu_usage = false, t_samp=100, num=25, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true, γ=0.001, logging=false, io=nothing)
+function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=10, plotSample=false, annealing=false, β=1, β2 = 1.0, learnType="Rdm", gpu_usage = false, t_samp=100, num=25, optType="SGD", numbers=[0,1], snapshot=50, savemodel=true, γ=0.001, logging=false, io=nothing)
     try
         Int(sqrt(num))
     catch
@@ -27,22 +27,33 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     dev = selectDev(hparams)
     
     x = loadData(; hparams, dsName="MNIST01", numbers)
+    
     if learnType == "Rdm"
         x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
-    elseif learnType == "CD" || learnType == "PCD"
+        lProtocol = learnType
+    elseif learnType in ["CD", "PCD"]
         x_Gibbs = x
+        lProtocol = learnType
+    elseif learnType == "Hybrid"
+        x_Gibbs = x
+        lProtocol = "CD"
+    elseif learnType == "Eigen"
+        x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
+        lProtocol = learnType
     end
     
+    
     if annealing
-        β = 1.0
+        β0 = β2
+        ΔT = (1/(β0*100) - 1)*1/epochs      #(T₀/Tₙ - 1)/epochs
     end 
 
     for epoch in 1:epochs
         enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch, ZEpoch = [], [], [], [], []
         
-#         Threads.@threads 
         for i in eachindex(x)
-            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, dev)
+            # @info i
+            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, β2, dev, lProtocol)
             if learnType == "PCD"
                 x_Gibbs[i] = rbm.v |> cpu
             end
@@ -55,10 +66,11 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
             append!(ΔaEpoch, mean(Δa) |> cpu)
             append!(ΔbEpoch, mean(Δb) |> cpu)
         end
-        
+
+        a,b = EnRBM2(J, hparams; dev)
         append!(m.enList, mean(enEpoch)/(hparams.nv+hparams.nh))
         append!(m.enSDList, std(enEpoch)/(hparams.nv+hparams.nh))
-        append!(m.enZList, genEnZSample(rbmZ, J, hparams, m; sampleSize = hparams.batch_size, t_samp, β, dev)/(hparams.nv+hparams.nh))
+        append!(m.enZList, a)
         append!(m.ΔwList, mean(ΔwEpoch))
         append!(m.ΔwSDList, std(ΔwEpoch))
         append!(m.ΔaList, mean(ΔaEpoch))
@@ -70,15 +82,16 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         append!(m.wTrMean, MatrixMean(J.w'))
         append!(m.wTrVar, MatrixVar(J.w'))
         append!(m.Z, mean(ZEpoch))
+        append!(m.Zrbm, b)
 
-        @info string(now())[1:end-4], epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β
+        @info string(now())[1:end-4], epoch, m.enList[end]/(hparams.nv+hparams.nh), m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β2
         logging ? flush(io) : nothing
         if epoch % snapshot == 0 
             savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"]) : nothing
             genSample(rbm, J, hparams, m; num, β, t=t_samp, plotSample, epoch, dict, dev)         
         end
         if annealing
-            β = β + 1/epochs
+            β2 = β2 + β0*ΔT
         end
         
         x = reshuffle(x; hparams)
@@ -88,6 +101,11 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
             x_Gibbs = x #reshuffle(x_Gibbs; hparams)
         elseif learnType == "PCD"
             x_Gibbs = reshuffle(x_Gibbs; hparams)
+        elseif learnType == "Hybrid"
+            lProtocol = ["CD", "Eigen"][sign(mod(epoch,1))+1]
+            x_Gibbs = x
+        elseif learnType == "Eigen" && epoch > 2
+            x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
         end
         
     end

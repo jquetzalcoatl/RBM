@@ -4,7 +4,7 @@ include("en.jl")
 
 function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train", plotSample=true, epoch=0, dict, dev)
     lnum = Int(sqrt(num))
-    xh = rand(hparams.nh, num) |> dev
+    xh = sign.(rand(hparams.nh, num) .< 0.5) |> dev
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
 
     for i in 1:t
@@ -17,13 +17,17 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
     if mode == "train"
         # sampAv = Int(num/4)
         pEn = plot(.- m.enList .- log.(m.Z), yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        pEn = plot!(.- m.enZList .- log.(m.Z), markersize=7, markershapes = :circle, lw=1.5)
+        try
+            pEn = plot!(.- m.enZList .- log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5)
+        catch
+            pEn = plot!(.- m.enZList .- log.(m.Z), markersize=7, markershapes = :circle, lw=1.5)
+        end
 
         pLoss = plot(m.ΔwList, yerr=m.ΔwSDList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pLoss = plot!(m.ΔbList, yerr=m.ΔbSDList, label="Δb", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
-        pEigen = computeEigenonW(J, hparams)
+        pEigen = computeEigenonW(J, hparams; dev)
         pWMean = plot(m.wMean, yerr=m.wVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pWMean = plot!(m.wTrMean, yerr=m.wTrVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
@@ -32,12 +36,12 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
         # avSamp = [mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3)[:,:,1] for i in 1:4]
         # hmSamp = heatmap(hcat(avSamp...))
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
-        hmSamp = heatmap(permutedims(avSamp,(2,1)))
+        hmSamp = heatmap(avSamp, rotate=90)
         
         p1 = plot(pEn, pLoss, layout=(1,2))
         p2 = plot(pEigen, pWMean, layout=(1,2))
         p = plot(p1, p2, layout=(2,1))
-        f = plot(p,hmSamp, layout=(2,1), size=(500,600))
+        f = plot(p,hmSamp, layout=(2,1), size=(500,600), margin = 2*Plots.mm)
         if plotSample
             display(f)
         else
@@ -48,7 +52,7 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
         # avSamp = σ.(mean(samp, dims=3))[:,:,1]
         # avSamp = mean(samp, dims=3)[:,:,1]
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
-        hmSamp = heatmap(permutedims(avSamp,(2,1)))
+        hmSamp = heatmap(avSamp, rotate=90)
         display(hmSamp)
     elseif mode == "results"
         # pEn = plot(m.enList, yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
@@ -70,8 +74,9 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
     end
 end
 
-function computeEigenonW(J, hparams)
-    F = LinearAlgebra.svd(J.w)
+function computeEigenonW(J, hparams; dev)
+    H_eff = H_effective(J,hparams; dev)
+    F = LinearAlgebra.svd(H_eff)
     lambda = F.S |> cpu
     f = plot(lambda, markershape=:circle, scale=:log10, label="λ Jw", markersize=7, 
     markershapes = :circle, lw=1.5, markerstrokewidth=0, frame=:box)
@@ -125,7 +130,7 @@ function MatrixVar(m)
     return matVar
 end
 
-function genEnZSample(rbmZ, J, hparams, m; sampleSize = 1000, t_samp = 10, β = 1, dev)
+function EnData(rbmZ, J, hparams; sampleSize = 1000, t_samp = 10, β = 1, dev)
     
     xh = rand(hparams.nh, sampleSize) |> dev
     rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, sampleSize) |> dev) .+ J.a)))) |> dev
@@ -134,7 +139,23 @@ function genEnZSample(rbmZ, J, hparams, m; sampleSize = 1000, t_samp = 10, β = 
         rbmZ.h = Array{Float32}(sign.(rand(hparams.nh, sampleSize) |> dev .< σ.(β .* (J.w' * rbmZ.v .+ J.b)))) |> dev 
         rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * rbmZ.h .+ J.a)))) |> dev  
     end
-    avgEn2(rbmZ,J, hparams)
+    avgEn(rbmZ,J, hparams),  sum(exp.(-H(rbm,J))) #/(hparams.nv+hparams.nh)
+end
+
+function EnRBM(J, hparams; dev)
+    
+    H_eff = H_effective(J,hparams; dev)
+    F = LinearAlgebra.svd(H_eff, full=true);
+    Z = sum(exp.(-F.S/(hparams.nv+hparams.nh)))
+    sum( F.S' * exp.(-F.S/(hparams.nv+hparams.nh)))/Z, Z
+end
+
+function EnRBM2(J, hparams; dev)
+    
+    H_eff = H_effective(J,hparams; dev)
+    F = LinearAlgebra.svd(H_eff, full=true);
+    Z = sum(exp.(-F.S))
+    sum( F.S' * exp.(-F.S))/Z, Z
 end
 
 function amplitudes(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
@@ -168,7 +189,7 @@ end
 
 function amplitudes2(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
     num=1
-    Heff = H_effective(J,hparams)
+    Heff = H_effective(J,hparams; dev)
     # F = LinearAlgebra.svd(J.w, full=true)
     F = LinearAlgebra.svd(Heff, full=true)
     batchV = zeros(hparams.nv, t_samp)
@@ -188,6 +209,38 @@ function amplitudes2(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
         
         Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * Xh .+ J.a)))) |> dev 
         a = abs.(F.U' * Xv)
+        # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
+        # batchV[:,i] = reshape(c,:);
+        batchV[:,i] = reshape(a,:);
+    end
+    return batchV, batchH[:,2:end]
+end
+
+function amplitudes3(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
+    num=1
+    Heff = H_effective(J,hparams)
+    # F = LinearAlgebra.svd(J.w, full=true)
+    F = LinearAlgebra.svd(Heff, full=true)
+    batchV = zeros(hparams.nv, t_samp)
+    batchH = zeros(hparams.nh, t_samp)
+
+    mv = σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a))
+    Xv = CuArray{Float32}(sign.(rand(hparams.nv, num) |> dev .< mv )) |> dev
+    a = abs.(F.U' * mv)
+    batchV[:,1] =  reshape(a,:);
+    
+    
+    for i in 2:t_samp
+        mh = σ.(β .* (J.w' * Xv .+ J.b))
+        Xh = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< mh)) |> dev 
+        a = abs.(F.V' * mh)
+        # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
+        # batchH[:,i] =  reshape(c,:)
+        batchH[:,i] =  reshape(a,:)
+
+        mv = σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a))
+        Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< mv)) |> dev 
+        a = abs.(F.U' * mv)
         # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
         # batchV[:,i] = reshape(c,:);
         batchV[:,i] = reshape(a,:);

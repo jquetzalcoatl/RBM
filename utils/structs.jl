@@ -37,6 +37,7 @@ mutable struct ModelStats
     wTrMean
     wTrVar
     Z
+    Zrbm
 end
 
 mutable struct WeightOpt

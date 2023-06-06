@@ -1,5 +1,6 @@
 using ArgParse, CUDA, Flux
 using Logging
+CUDA.allowscalar(true)
 
 include("./utils/train.jl")
 
@@ -17,7 +18,7 @@ function parseCommandLine()
       "--epochs", "-e"
         help = "Epochs"
         arg_type = Int64
-        default = 2000
+        default = 5000
       "--batchsize", "-b"
         help = "Batch Size"
         arg_type = Int64
@@ -29,7 +30,7 @@ function parseCommandLine()
       "--gibbs", "-t"
         help = "Gibbs sampling length"
         arg_type = Int64
-        default = 100
+        default = 500
       "--plotsample", "-p"
         help = "Plot samples"
         arg_type = Bool
@@ -37,7 +38,7 @@ function parseCommandLine()
       "--annealing", "-a"
         help = "Annealing?"
         arg_type = Bool
-        default = false
+        default = true
       "--learn", "-D"
         help = "Type of learning? Rdm, CD, PCD"
         arg_type = String
@@ -45,7 +46,7 @@ function parseCommandLine()
       "--beta", "-T"
         help = "Inverse Temp"
         arg_type = Float64
-        default = 1.0
+        default = 0.0005
       "--msg", "-m"
         help = "Dir name"
         arg_type = String
@@ -71,6 +72,10 @@ function parseCommandLine()
         nargs = '*'
         arg_type = Int64
         default = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      "--maxmem"
+        help = "Specify max memory"
+        arg_type = String
+        default = "1GiB"
     end
   
     return parse_args(s) # the result is a Dict{String,Any
@@ -86,14 +91,14 @@ function main()
     t=dict["gibbs"]
     plotSample=false 
     annealing=dict["annealing"] 
-    β=dict["beta"]
+    β2=dict["beta"]
     learnType=dict["learn"]
     path = dict["msg"]
     gpu_usage = dict["gpu"]
     numbers = dict["numbers"]
     if gpu_usage
         CUDA.device!(dict["dev"])
-        ENV["JULIA_CUDA_HARD_MEMORY_LIMIT"]="1GiB"
+        ENV["JULIA_CUDA_HARD_MEMORY_LIMIT"]=dict["maxmem"]
     end
     
     isdir(dict["bdir"] * "/models/$path") || mkpath(dict["bdir"] * "/models/$path")
@@ -101,7 +106,7 @@ function main()
     logger = SimpleLogger(io)
     global_logger(logger)
     
-    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], numbers, logging=true, io)
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=20, numbers, logging=true, io)
     saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     saveDict(dict; path, baseDir = dict["bdir"])
     close(io)
