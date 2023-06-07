@@ -2,7 +2,7 @@ using LinearAlgebra, Flux, CUDA
 include("adamOpt.jl")
 include("en.jl")
 
-function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train", plotSample=true, epoch=0, dict, dev)
+function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "train", plotSample=true, epoch=0, dict, dev)
     lnum = Int(sqrt(num))
     xh = sign.(rand(hparams.nh, num) .< 0.5) |> dev
     rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
@@ -15,13 +15,14 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
     samp = reshape(rbm.v, 28,28,:) |> cpu;
 
     if mode == "train"
-        # sampAv = Int(num/4)
-        pEn = plot(.- m.enList .- log.(m.Z), yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        try
-            pEn = plot!(.- m.enZList .- log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5)
-        catch
-            pEn = plot!(.- m.enZList .- log.(m.Z), markersize=7, markershapes = :circle, lw=1.5)
-        end
+        pF = plot(.- m.T .* log.(m.Zdata), label="F_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pF = plot!(.- m.T .* log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="F_r")
+
+        pEn = plot(m.enData, label="E_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pEn = plot!(m.enRBM, markersize=7, markershapes = :circle, lw=1.5, label="E_r")
+
+        pEnt = plot(m.enData ./  m.T .+ log.(m.Zdata), label="S_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pEnt = plot!(m.enRBM ./ m.T .+ log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="S_r")
 
         pLoss = plot(m.ΔwList, yerr=m.ΔwSDList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
@@ -31,17 +32,14 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
         pWMean = plot(m.wMean, yerr=m.wVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pWMean = plot!(m.wTrMean, yerr=m.wTrVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
-
-        # avSamp = [σ.(mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3))[:,:,1] for i in 1:4]
-        # avSamp = [mean(samp[:,:,1 + sampAv*(i-1):sampAv*i], dims=3)[:,:,1] for i in 1:4]
-        # hmSamp = heatmap(hcat(avSamp...))
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
         hmSamp = heatmap(avSamp, rotate=90)
         
         p1 = plot(pEn, pLoss, layout=(1,2))
-        p2 = plot(pEigen, pWMean, layout=(1,2))
-        p = plot(p1, p2, layout=(2,1))
-        f = plot(p,hmSamp, layout=(2,1), size=(500,600), margin = 2*Plots.mm)
+        p2 = plot(pF, pEnt, layout=(1,2))
+        p3 = plot(pEigen, pWMean, layout=(1,2))
+        p = plot(p1, p2, p3, layout=(3,1))
+        f = plot(p,hmSamp, layout=(2,1), size=(600,1000), margin = 6*Plots.mm)
         if plotSample
             display(f)
         else
@@ -49,27 +47,31 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, mode = "train",
             savefig(f, dict["bdir"] * "/models/$(dict["msg"])/Plots/$epoch.png")
         end
     elseif mode == "test"
-        # avSamp = σ.(mean(samp, dims=3))[:,:,1]
-        # avSamp = mean(samp, dims=3)[:,:,1]
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
         hmSamp = heatmap(avSamp, rotate=90)
         display(hmSamp)
     elseif mode == "results"
-        # pEn = plot(m.enList, yerr=m.enSDList, label="e T=$(round(1/(β+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        pEn = plot(.- m.enList .- log.(m.Z), ribbon=m.enSDList, lw=1.5, label="e T=$(round(1/(β+0.000001), digits=2))")
-        pEn = plot!(.- m.enZList .- log.(m.Z), lw=1.5)
+        pF = plot(.- m.T .* log.(m.Zdata), label="F_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pF = plot!(.- m.T .* log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="F_r")
+
+        pEn = plot(m.enData, label="E_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pEn = plot!(m.enRBM, markersize=7, markershapes = :circle, lw=1.5, label="E_r")
+
+        pEnt = plot(m.enData ./  m.T .+ log.(m.Zdata), label="S_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        pEnt = plot!(m.enRBM ./ m.T .+ log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="S_r")
 
         pLoss = plot(m.ΔwList, ribbon=m.ΔwSDList, label="Δw", lw=1.5)
         pLoss = plot!(m.ΔaList, ribbon=m.ΔaSDList, label="Δa", lw=1.5)
         pLoss = plot!(m.ΔbList, ribbon=m.ΔbSDList, label="Δb", lw=1.5)
         
-        pEigen = computeEigenonW(J, hparams)
+        pEigen = computeEigenonW(J, hparams; dev)
         pWMean = plot(m.wMean, ribbon=m.wVar, label="w mean", lw=1.5)
         pWMean = plot!(m.wTrMean, ribbon=m.wTrVar, label="w mean", lw=1.5)
         
         p1 = plot(pEn, pLoss, layout=(1,2))
-        p2 = plot(pEigen, pWMean, layout=(1,2))
-        p = plot(p1, p2, layout=(2,1), size=(500,600))
+        p2 = plot(pF, pEnt, layout=(1,2))
+        p3 = plot(pEigen, pWMean, layout=(1,2))
+        p = plot(p1, p2, p3, layout=(3,1), size=(600,800), margin = 6*Plots.mm)
         display(p)
     end
 end
@@ -78,12 +80,12 @@ function computeEigenonW(J, hparams; dev)
     H_eff = H_effective(J,hparams; dev)
     F = LinearAlgebra.svd(H_eff)
     lambda = F.S |> cpu
-    f = plot(lambda, markershape=:circle, scale=:log10, label="λ Jw", markersize=7, 
+    f = plot(lambda, markershape=:circle, label="λ Jw", markersize=7, 
     markershapes = :circle, lw=1.5, markerstrokewidth=0, frame=:box)
     W = randn(hparams.nv, hparams.nh) .* 0.1 / √(hparams.nh);
     F = LinearAlgebra.svd(W);
-    f = plot!(F.S, markershape=:circle, scale=:log10, label="λ rdm", markersize=7, 
-    markershapes = :circle, lw=1.5, markerstrokewidth=0, frame=:box)
+    f = plot!(F.S, markershape=:circle, label="λ rdm", markersize=7, 
+    markershapes = :circle, lw=1.5, scale=:log10, markerstrokewidth=0, frame=:box)
     return f
 end
 
@@ -130,8 +132,8 @@ function MatrixVar(m)
     return matVar
 end
 
-function EnData(rbmZ, J, hparams; sampleSize = 1000, t_samp = 10, β = 1, dev)
-    
+function EnData(rbmZ, J, hparams; sampleSize = 1000, t_samp = 10, β = 1, β2=1, dev)
+    # Must change!!
     xh = rand(hparams.nh, sampleSize) |> dev
     rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, sampleSize) |> dev) .+ J.a)))) |> dev
 
@@ -139,23 +141,21 @@ function EnData(rbmZ, J, hparams; sampleSize = 1000, t_samp = 10, β = 1, dev)
         rbmZ.h = Array{Float32}(sign.(rand(hparams.nh, sampleSize) |> dev .< σ.(β .* (J.w' * rbmZ.v .+ J.b)))) |> dev 
         rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * rbmZ.h .+ J.a)))) |> dev  
     end
-    avgEn(rbmZ,J, hparams),  sum(exp.(-H(rbm,J))) #/(hparams.nv+hparams.nh)
+    avgEn(rbmZ,J, β2),  sum(exp.(-β2 .* H(rbm,J)))
 end
 
-function EnRBM(J, hparams; dev)
-    
-    H_eff = H_effective(J,hparams; dev)
-    F = LinearAlgebra.svd(H_eff, full=true);
-    Z = sum(exp.(-F.S/(hparams.nv+hparams.nh)))
-    sum( F.S' * exp.(-F.S/(hparams.nv+hparams.nh)))/Z, Z
-end
+# function EnRBM(J, hparams; dev)    
+#     H_eff = H_effective(J,hparams; dev)
+#     F = LinearAlgebra.svd(H_eff, full=true);
+#     Z = sum(exp.(-F.S/(hparams.nv+hparams.nh)))
+#     sum( F.S' * exp.(-F.S/(hparams.nv+hparams.nh)))/Z, Z
+# end
 
-function EnRBM2(J, hparams; dev)
-    
+function EnRBM(J, hparams, β2=1; dev)    
     H_eff = H_effective(J,hparams; dev)
     F = LinearAlgebra.svd(H_eff, full=true);
-    Z = sum(exp.(-F.S))
-    sum( F.S' * exp.(-F.S))/Z, Z
+    Z = sum(exp.(-β2 .* F.S))
+    sum( F.S' * exp.(-β2 .* F.S))/Z, Z
 end
 
 function amplitudes(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )

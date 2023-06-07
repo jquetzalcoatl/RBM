@@ -23,9 +23,12 @@ mutable struct Weights
 end
 
 mutable struct ModelStats
-    enList
-    enSDList
-    enZList
+    enData
+    enDataSD
+    enRBM
+    Zdata
+    Zrbm
+    T
     ΔwList 
     ΔaList 
     ΔbList
@@ -36,8 +39,6 @@ mutable struct ModelStats
     wVar
     wTrMean
     wTrVar
-    Z
-    Zrbm
 end
 
 mutable struct WeightOpt
