@@ -92,6 +92,7 @@ function main()
     plotSample=false 
     annealing=dict["annealing"] 
     β2=dict["beta"]
+    β = β2
     learnType=dict["learn"]
     path = dict["msg"]
     gpu_usage = dict["gpu"]
@@ -106,7 +107,7 @@ function main()
     logger = SimpleLogger(io)
     global_logger(logger)
     
-    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=10, numbers, logging=true, io)
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=10, numbers, logging=true, io)
     # saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     saveDict(dict; path, baseDir = dict["bdir"])
     close(io)

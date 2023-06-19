@@ -5,11 +5,15 @@ include("en.jl")
 function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "train", plotSample=true, epoch=0, dict, dev)
     lnum = Int(sqrt(num))
     xh = sign.(rand(hparams.nh, num) .< 0.5) |> dev
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
+    xh = xh ./ sum(xh, dims=1)
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * xh .+ J.a)))) |> dev
+    rbm.v = rbm.v ./ sum(rbm.v, dims=1)
 
     for i in 1:t
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
         rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+        rbm.v = rbm.v ./ sum(rbm.v, dims=1)
     end
 
     samp = reshape(rbm.v, 28,28,:) |> cpu;
@@ -95,11 +99,15 @@ function JwByComponent(rbm, J, hparams; num = 4, t = 10, β = 1, idx = 1, dev)
     F = LinearAlgebra.svd(J.w, full=true)
     Jw = F.S[idx] * F.U[:,idx] * F.V[:,idx]'    # I could also have used F.Vt instead of F.V'
     xh = rand(hparams.nh, num) |> dev
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (Jw * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
+    xh = xh ./ sum(xh, dims=1)
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (Jw * xh .+ J.a)))) |> dev
+    rbm.v = rbm.v ./ sum(rbm.v, dims=1)
 
     for i in 1:10
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(β .* (Jw' * rbm.v .+ J.b)))) |> dev 
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
         rbm.v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (Jw * rbm.h .+ J.a)))) |> dev  
+        rbm.v = rbm.h ./ sum(rbm.v, dims=1)
     end
 
     samp = reshape(rbm.v, 28,28,:) |> cpu;
@@ -135,11 +143,15 @@ end
 function EnData(rbmZ, J, hparams; sampleSize = 1000, t_samp = 10, β = 1, β2=1, dev)
     # Must change!!
     xh = rand(hparams.nh, sampleSize) |> dev
-    rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, sampleSize) |> dev) .+ J.a)))) |> dev
+    xh = xh ./ sum(xh, dims=1)
+    rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * xh .+ J.a)))) |> dev
+    rbm.v = rbm.v ./ sum(rbm.v, dims=1)
 
     for i in 1:t_samp
         rbmZ.h = Array{Float32}(sign.(rand(hparams.nh, sampleSize) |> dev .< σ.(β .* (J.w' * rbmZ.v .+ J.b)))) |> dev 
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
         rbmZ.v = Array{Float32}(sign.(rand(hparams.nv, sampleSize) |> dev .< σ.(β .* (J.w * rbmZ.h .+ J.a)))) |> dev  
+        rbm.v = rbm.v ./ sum(rbm.v, dims=1)
     end
     avgEn(rbmZ,J, β2),  sum(exp.(-β2 .* H(rbm,J)))
 end
@@ -163,8 +175,11 @@ function amplitudes(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
     F = LinearAlgebra.svd(J.w, full=true)
     batchV = zeros(hparams.nv, t_samp)
     batchH = zeros(hparams.nh, t_samp)
-    
-    Xv = CuArray{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
+
+    xh = rand(hparams.nh, num) |> dev
+    xh = xh ./ sum(xh, dims=1)
+    Xv = CuArray{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * xh .+ J.a)))) |> dev
+    Xv = Xv ./ sum(Xv, dims=1)
     a = abs.(F.U' * Xv)
     # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
     # batchV[:,1] =  reshape(c,:);
@@ -173,12 +188,14 @@ function amplitudes(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
     
     for i in 2:t_samp
         Xh = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(β .* (J.w' * Xv .+ J.b)))) |> dev 
+        Xh = Xh ./ sum(Xh, dims=1)
         a = abs.(F.V' * Xh)
         # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
         # batchH[:,i] =  reshape(c,:)
         batchH[:,i] =  reshape(a,:)
         
         Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * Xh .+ J.a)))) |> dev 
+        Xv = Xv ./ sum(Xv, dims=1)
         a = abs.(F.U' * Xv)
         # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
         # batchV[:,i] = reshape(c,:);
@@ -194,20 +211,25 @@ function amplitudes2(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
     F = LinearAlgebra.svd(Heff, full=true)
     batchV = zeros(hparams.nv, t_samp)
     batchH = zeros(hparams.nh, t_samp)
-    
-    Xv = CuArray{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a)))) |> dev
+
+    xh = rand(hparams.nh, num) |> dev
+    xh = xh ./ sum(xh, dims=1)
+    Xv = CuArray{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * xh .+ J.a)))) |> dev
+    Xv = Xv ./ sum(Xv, dims=1)
     a = abs.(F.U' * Xv)
     batchV[:,1] =  reshape(a,:);
     
     
     for i in 2:t_samp
         Xh = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(β .* (J.w' * Xv .+ J.b)))) |> dev 
+        Xh = Xh ./ sum(Xh, dims=1)
         a = abs.(F.V' * Xh)
         # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
         # batchH[:,i] =  reshape(c,:)
         batchH[:,i] =  reshape(a,:)
         
         Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* (J.w * Xh .+ J.a)))) |> dev 
+        Xv = Xv ./ sum(Xv, dims=1)
         a = abs.(F.U' * Xv)
         # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
         # batchV[:,i] = reshape(c,:);
@@ -216,51 +238,57 @@ function amplitudes2(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
     return batchV, batchH[:,2:end]
 end
 
-function amplitudes3(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
-    num=1
-    Heff = H_effective(J,hparams)
-    # F = LinearAlgebra.svd(J.w, full=true)
-    F = LinearAlgebra.svd(Heff, full=true)
-    batchV = zeros(hparams.nv, t_samp)
-    batchH = zeros(hparams.nh, t_samp)
+# function amplitudes3(J, hparams; num=1, β=1.0, t_samp=40, ϵ=1e-5, dev=gpu )
+#     num=1
+#     Heff = H_effective(J,hparams)
+#     # F = LinearAlgebra.svd(J.w, full=true)
+#     F = LinearAlgebra.svd(Heff, full=true)
+#     batchV = zeros(hparams.nv, t_samp)
+#     batchH = zeros(hparams.nh, t_samp)
 
-    mv = σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a))
-    Xv = CuArray{Float32}(sign.(rand(hparams.nv, num) |> dev .< mv )) |> dev
-    a = abs.(F.U' * mv)
-    batchV[:,1] =  reshape(a,:);
+#     mv = σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a))
+#     Xv = CuArray{Float32}(sign.(rand(hparams.nv, num) |> dev .< mv )) |> dev
+#     a = abs.(F.U' * mv)
+#     batchV[:,1] =  reshape(a,:);
     
     
-    for i in 2:t_samp
-        mh = σ.(β .* (J.w' * Xv .+ J.b))
-        Xh = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< mh)) |> dev 
-        a = abs.(F.V' * mh)
-        # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
-        # batchH[:,i] =  reshape(c,:)
-        batchH[:,i] =  reshape(a,:)
+#     for i in 2:t_samp
+#         mh = σ.(β .* (J.w' * Xv .+ J.b))
+#         Xh = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< mh)) |> dev 
+#         a = abs.(F.V' * mh)
+#         # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
+#         # batchH[:,i] =  reshape(c,:)
+#         batchH[:,i] =  reshape(a,:)
 
-        mv = σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a))
-        Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< mv)) |> dev 
-        a = abs.(F.U' * mv)
-        # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
-        # batchV[:,i] = reshape(c,:);
-        batchV[:,i] = reshape(a,:);
-    end
-    return batchV, batchH[:,2:end]
-end
+#         mv = σ.(β .* (J.w * (rand(hparams.nh, num) |> dev) .+ J.a))
+#         Xv = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< mv)) |> dev 
+#         a = abs.(F.U' * mv)
+#         # c = mean(a ./ (sum(a, dims=1) .+ dev(ϵ)), dims=2)
+#         # batchV[:,i] = reshape(c,:);
+#         batchV[:,i] = reshape(a,:);
+#     end
+#     return batchV, batchH[:,2:end]
+# end
 
 function correlation(rbm, J, hparams; t_therm=10000, t_corr=10000, β=1)
     corr = []
     xh = rand(hparams.nh) |> dev
+    xh = xh ./ sum(xh, dims=1)
     rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * xh .+ J.a)))) |> dev
+    rbm.v = rbm.v ./ sum(rbm.v, dims=1)
 
     for i in 1:t_therm
         rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
         rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+        rbm.v = rbm.v ./ sum(rbm.v, dims=1)
     end
 
     rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+    rbm.h = rbm.h ./ sum(rbm.h, dims=1)
     m = σ.(β .* (J.w * rbm.h .+ J.a))
     rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< m)) |> dev
+    rbm.h = rbm.h ./ sum(rbm.h, dims=1)
     
     Δv0 = m .- mean(m, dims=1)
     Δv = Δv0
@@ -269,8 +297,10 @@ function correlation(rbm, J, hparams; t_therm=10000, t_corr=10000, β=1)
     append!(corr, Ct/C0)
     for i in 1:t_corr
         rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
         m = σ.(β .* (J.w * rbm.h .+ J.a))
         rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< m)) |> dev
+        rbm.v = rbm.v ./ sum(rbm.v, dims=1)
         Δv = m .- mean(m, dims=1)
         Ct = (Δv0' * Δv)/hparams.nv
         
@@ -282,15 +312,21 @@ end
 function correlation2(rbm, J, hparams; t_therm=10000, t_corr=10000, β=1)
     corr = []
     xh = rand(hparams.nh) |> dev
+    xh = xh ./ sum(xh, dims=1)
     rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * xh .+ J.a)))) |> dev
+    rbm.v = rbm.v ./ sum(rbm.v, dims=1)
 
     for i in 1:t_therm
         rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
-        rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev
+        rbm.v = rbm.v ./ sum(rbm.v, dims=1)
     end
 
-    rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
-    rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+    rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+    rbm.h = rbm.h ./ sum(rbm.h, dims=1)
+    rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev 
+    rbm.v = rbm.v ./ sum(rbm.v, dims=1)
     m = rbm.v
     
     Δv0 = m .- mean(m, dims=1)
@@ -300,7 +336,9 @@ function correlation2(rbm, J, hparams; t_therm=10000, t_corr=10000, β=1)
     append!(corr, Ct/C0)
     for i in 1:t_corr
         rbm.h = Array{Float32}(sign.(rand(hparams.nh) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev 
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
         rbm.v = Array{Float32}(sign.(rand(hparams.nv) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+        rbm.v = rbm.v ./ sum(rbm.v, dims=1)
         m = rbm.v
         Δv = m .- mean(m, dims=1)
         Ct = (Δv0' * Δv)/hparams.nv

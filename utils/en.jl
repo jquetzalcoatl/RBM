@@ -27,7 +27,7 @@ function H_effective(J,hparams; dev)
     if !isapprox(F.U * dev(cat(Diagonal(F.S), (zeros(hparams.nv-hparams.nh,hparams.nh)),dims=1)) * F.Vt, Hamiltonian, atol=1e-2)
         @warn "Diagonalization of effective H prompted false"
     end
-    if !isapprox(F.U' * F.U, I)
+    if !isapprox(F.U * F.U', I)
         @warn "U eigenvectors don't span space"
         # exit()
     end
@@ -49,6 +49,7 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
     rbm.v = x_data |> dev
     
     rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+    rbm.h = rbm.h ./ sum(rbm.h, dims=1)
     Z = sum(exp.(- β2 .* H(rbm, J)))
 
     if isinf(Z)
@@ -60,8 +61,9 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         v_data = (rbm.v * exp.(- β2 .* H(rbm, J))) / Z
         h_data = (rbm.h * exp.(- β2 .* H(rbm, J))) / Z
     end
-    for i in 1:2
+    for i in 1:4
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
         Z = sum(exp.(- β2 .* H(rbm, J)))
 
         if isinf(Z)
@@ -87,7 +89,9 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
     if lProtocol in ["Rdm", "CD", "PCD"]
         for i in 1:hparams.t
             rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-            rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev  
+            rbm.h = rbm.h ./ sum(rbm.h, dims=1)
+            rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev 
+            rbm.v = rbm.v ./ sum(rbm.v, dims=1)
         end
         Z = sum(exp.(- β2 .* H(rbm, J)))
     
@@ -96,6 +100,8 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         h_reconstruct = rbm.h * exp.(- β2 .* H(rbm, J)) / Z
         
         Δw = vh_data - vh_recontruct - hparams.γ .* J.w
+        Δa = v_data - v_reconstruct
+        Δb = h_data - h_reconstruct
     elseif lProtocol == "Eigen"
         H_eff = H_effective(J,hparams; dev)
         F = LinearAlgebra.svd(H_eff, full=false);
@@ -104,11 +110,12 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         v_reconstruct = F.U * exp.(-β2 .* F.S) / Z
         h_reconstruct = F.V * exp.(-β2 .* F.S) / Z
 
-        Δw = 0.00001 .* vh_data - vh_recontruct - 0.001 .* J.w
+        Δw = 1.0 .* vh_data - vh_recontruct - 0.001 .* J.w
+        Δa = 0.1 .* v_data - v_reconstruct
+        Δb = 0.1 .* h_data - h_reconstruct
     end
    
-    Δa = v_data - v_reconstruct
-    Δb = h_data - h_reconstruct
+    
 
     Δw, Δa, Δb
 end

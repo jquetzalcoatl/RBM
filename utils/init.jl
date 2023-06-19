@@ -19,9 +19,9 @@ end
 
 function initWeights(args)
     dev = selectDev(args)
-    W = randn(args.nv, args.nh) .* 0.1 / √(args.nh) |> dev
-    a = randn(args.nv) .* 0.1 / √args.nv |> dev
-    b = randn(args.nh) .* 0.1 / √args.nh |> dev
+    W = rand(args.nv, args.nh) .* 0.1 / √(args.nh) |> dev
+    a = rand(args.nv) .* 0.1 / √args.nv |> dev
+    b = rand(args.nh) .* 0.1 / √args.nh |> dev
     return Weights(W,a,b)
 end
 

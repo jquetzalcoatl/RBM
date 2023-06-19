@@ -4,7 +4,7 @@ include("init.jl")
 include("adamOpt.jl")
 include("structs.jl")
 
-function loadData(; hparams, dsName="MNIST01", numbers = [0,1])
+function loadData(; hparams, dsName="MNIST01", numbers = [0,1], normalize=true)
     if dsName=="testing"
         #dummy DS
         dsSize=100
@@ -22,14 +22,10 @@ function loadData(; hparams, dsName="MNIST01", numbers = [0,1])
             end
         end
         train_x = train_x_samp
-        # train_x_0 = Array{Float32}(train_x[:, :, train_y .== 0] .≥ 0.5)
-        # train_x_1 = Array{Float32}(train_x[:, :, train_y .== 1] .≥ 0.5)
-        # train_x_5 = Array{Float32}(train_x[:, :, train_y .== 5] .≥ 0.5)
-        # train_x = cat(train_x_0, train_x_1, train_x_5, dims=3)
-        # train_x = cat(train_x_0, dims=3)
         @info size(train_x,3)
         idx = randperm(size(train_x,3))
         train_data = reshape(train_x, 28*28, :)[:,idx]
+        train_data = normalize ? train_data ./ sum(train_data, dims=1) : train_data
         x = [train_data[:,i] for i in Iterators.partition(1:size(train_data,2), hparams.batch_size)][1:end-1]
     end
     x

@@ -45,9 +45,11 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     
     if annealing
         β0 = β2
-        ΔT = (1/(β0*1) - 1)*1/epochs      #(T₀/Tₙ - 1)/epochs
+        ΔT = (1/(β0*100) - 1)*1/epochs      #(T₀/Tₙ - 1)/epochs
+        # β = β2
     end 
 
+    genSample(rbm, J, hparams, m; num, β, β2, t=t_samp, plotSample, epoch=0, dict, dev) 
     for epoch in 1:epochs
         enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch, ZEpoch = [], [], [], [], []
         
@@ -96,8 +98,9 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
             savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"]) : nothing
             genSample(rbm, J, hparams, m; num, β, β2, t=t_samp, plotSample, epoch, dict, dev)         
         end
-        if annealing
+        if annealing && epoch > 0.5*epochs
             β2 = β2 + β0*ΔT
+            # β = β2
         end
         
         x = reshuffle(x; hparams)
