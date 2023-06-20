@@ -4,7 +4,7 @@ include("init.jl")
 include("adamOpt.jl")
 include("structs.jl")
 
-function loadData(; hparams, dsName="MNIST01", numbers = [0,1], normalize=true)
+function loadData(; hparams, dsName="MNIST01", numbers = [0,1], normalize=false)
     if dsName=="testing"
         #dummy DS
         dsSize=100

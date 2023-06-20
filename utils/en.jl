@@ -45,36 +45,38 @@ Loss function
 Δbₗ = β (⟨hₗ⟩_{p(h),p_{data}} - ⟨hₗ⟩_{p(v,h)})
 ```
 """
-function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm", thrsh=-400)
+function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm", thrsh=-400, m)
     rbm.v = x_data |> dev
     
     rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-    rbm.h = rbm.h ./ sum(rbm.h, dims=1)
+    # rbm.h = rbm.h ./ sum(rbm.h, dims=1)
     Z = sum(exp.(- β2 .* H(rbm, J)))
 
-    if isinf(Z)
-        vh_data = (rbm.v * Diagonal(β2 .* H(rbm, J) .< thrsh) * CuArray(rbm.h'))
-        v_data = rbm.v * dev(ones(hparams.batch_size))
-        h_data = rbm.h * dev(ones(hparams.batch_size))
-    else
-        vh_data = (rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h')) / Z # / hparams.batch_size 
-        v_data = (rbm.v * exp.(- β2 .* H(rbm, J))) / Z
-        h_data = (rbm.h * exp.(- β2 .* H(rbm, J))) / Z
-    end
+    # if isinf(Z)
+    #     vh_data = (rbm.v * Diagonal(β2 .* H(rbm, J) .< thrsh) * CuArray(rbm.h'))
+    #     v_data = rbm.v * dev(ones(hparams.batch_size))
+    #     h_data = rbm.h * dev(ones(hparams.batch_size))
+    # else
+    vh_data = (rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h')) / Z
+    v_data = (rbm.v * exp.(- β2 .* H(rbm, J))) / Z
+    h_data = (rbm.h * exp.(- β2 .* H(rbm, J))) / Z
+    # end
     for i in 1:4
+        rbm.v = x_data |> dev
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-        rbm.h = rbm.h ./ sum(rbm.h, dims=1)
+        # rbm.h = rbm.h ./ sum(rbm.h, dims=1)
+        
         Z = sum(exp.(- β2 .* H(rbm, J)))
 
-        if isinf(Z)
-            vh_data_tmp = (rbm.v * Diagonal(β2 .* H(rbm, J) .< thrsh) * CuArray(rbm.h'))
-            v_data_tmp = rbm.v * dev(ones(hparams.batch_size))
-            h_data_tmp = rbm.h * dev(ones(hparams.batch_size))
-        else
-            vh_data_tmp = (rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h')) / Z # / hparams.batch_size 
-            v_data_tmp = (rbm.v * exp.(- β2 .* H(rbm, J))) / Z
-            h_data_tmp = (rbm.h * exp.(- β2 .* H(rbm, J))) / Z
-        end
+        # if isinf(Z)
+        #     vh_data_tmp = (rbm.v * Diagonal(β2 .* H(rbm, J) .< thrsh) * CuArray(rbm.h'))
+        #     v_data_tmp = rbm.v * dev(ones(hparams.batch_size))
+        #     h_data_tmp = rbm.h * dev(ones(hparams.batch_size))
+        # else
+        vh_data_tmp = (rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h')) / Z # / hparams.batch_size 
+        v_data_tmp = (rbm.v * exp.(- β2 .* H(rbm, J))) / Z
+        h_data_tmp = (rbm.h * exp.(- β2 .* H(rbm, J))) / Z
+        # end
     
         vh_data = cat(vh_data, vh_data_tmp, dims=3)
         v_data = cat(v_data, v_data_tmp, dims=3)
@@ -89,9 +91,9 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
     if lProtocol in ["Rdm", "CD", "PCD"]
         for i in 1:hparams.t
             rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-            rbm.h = rbm.h ./ sum(rbm.h, dims=1)
+            # rbm.h = rbm.h ./ sum(rbm.h, dims=1)
             rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev 
-            rbm.v = rbm.v ./ sum(rbm.v, dims=1)
+            # rbm.v = rbm.v ./ sum(rbm.v, dims=1)
         end
         Z = sum(exp.(- β2 .* H(rbm, J)))
     
@@ -105,14 +107,30 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
     elseif lProtocol == "Eigen"
         H_eff = H_effective(J,hparams; dev)
         F = LinearAlgebra.svd(H_eff, full=false);
-        Z = sum(exp.(-β2 .* F.S)) #/(hparams.nv+hparams.nh)
-        vh_recontruct = F.U * Diagonal(exp.(-β2 .* F.S)) * F.Vt / Z
-        v_reconstruct = F.U * exp.(-β2 .* F.S) / Z
-        h_reconstruct = F.V * exp.(-β2 .* F.S) / Z
+        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.nh) |> dev .< σ.(β .* (F.V)))) |> dev
+        # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (F.U)))) |> dev 
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(F.V[:, end],1,hparams.batch_size))))) |> dev
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(F.U[:, end],1,hparams.batch_size))))) |> dev 
 
-        Δw = 1.0 .* vh_data - vh_recontruct - 0.001 .* J.w
-        Δa = 0.1 .* v_data - v_reconstruct
-        Δb = 0.1 .* h_data - h_reconstruct
+        
+        Z = sum(exp.(- β2 .* H(rbm, J)))
+        vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
+        v_reconstruct = rbm.v * exp.(- β2 .* H(rbm, J)) / Z
+        h_reconstruct = rbm.h * exp.(- β2 .* H(rbm, J)) / Z
+        # Z = sum(exp.(-β2 .* F.S)) #/(hparams.nv+hparams.nh)
+        # vh_recontruct = F.U * Diagonal(exp.(-β2 .* F.S)) * F.Vt / Z
+        # v_reconstruct = F.U * exp.(-β2 .* F.S) / Z
+        # h_reconstruct = F.V * exp.(-β2 .* F.S) / Z
+
+        Δw = (1.3 - (size(m.ΔwList,1) == 0 ? 0 : m.ΔwList[end]) ) .* vh_data - vh_recontruct #ad hoc
+        Δa = (1.3 - (size(m.ΔaList,1) == 0 ? 0 : m.ΔwList[end])) .* v_data - v_reconstruct
+        Δb = (1.3 - (size(m.ΔbList,1) == 0 ? 0 : m.ΔwList[end])) .* h_data - h_reconstruct
+
+        # ϵ = size(m.ΔbList,1) == 0 ? 0 : m.ΔbList[end]
+        # Δw = vh_data - vh_recontruct ./ (1+ϵ) #ad hoc
+        # Δa = v_data - v_reconstruct ./ (1+ϵ)
+        # Δb = h_data - h_reconstruct ./ (1+ϵ)
+
     end
    
     

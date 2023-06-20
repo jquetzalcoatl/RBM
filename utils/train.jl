@@ -55,7 +55,8 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         
         for i in eachindex(x)
             # @info i
-            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, β2, dev, lProtocol)
+            
+            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, β2, dev, lProtocol, m)
             if learnType == "PCD"
                 x_Gibbs[i] = rbm.v |> cpu
             end
