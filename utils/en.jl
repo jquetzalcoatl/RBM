@@ -109,8 +109,12 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         F = LinearAlgebra.svd(H_eff, full=false);
         # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.nh) |> dev .< σ.(β .* (F.V)))) |> dev
         # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (F.U)))) |> dev 
+        
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(F.V[:, end],1,hparams.batch_size))))) |> dev
         rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(F.U[:, end],1,hparams.batch_size))))) |> dev 
+
+        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(randn(hparams.nh),1,hparams.batch_size) |> dev)))) |> dev
+        # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(randn(hparams.nv),1,hparams.batch_size) |> dev)))) |> dev
 
         
         Z = sum(exp.(- β2 .* H(rbm, J)))
