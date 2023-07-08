@@ -37,7 +37,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     elseif learnType == "Hybrid"
         x_Gibbs = x
         lProtocol = "CD"
-    elseif learnType == "Eigen"
+    elseif learnType in ["Eigen", "EigenCD"]
         x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]
         lProtocol = learnType
     end
@@ -114,7 +114,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         elseif learnType == "Hybrid"
             lProtocol = ["Eigen", "CD"][sign(mod(epoch,3))+1]
             x_Gibbs = x
-        elseif learnType == "Eigen"
+        elseif learnType in ["Eigen", "EigenCD"]
             x_Gibbs = x
         end
         

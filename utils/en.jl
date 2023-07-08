@@ -112,29 +112,38 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(F.V[:, end],1,hparams.batch_size))))) |> dev
         rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(F.U[:, end],1,hparams.batch_size))))) |> dev 
-
-        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(randn(hparams.nh),1,hparams.batch_size) |> dev)))) |> dev
-        # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(randn(hparams.nv),1,hparams.batch_size) |> dev)))) |> dev
-
-        
+ 
         Z = sum(exp.(- β2 .* H(rbm, J)))
         vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
         v_reconstruct = rbm.v * exp.(- β2 .* H(rbm, J)) / Z
         h_reconstruct = rbm.h * exp.(- β2 .* H(rbm, J)) / Z
-        # Z = sum(exp.(-β2 .* F.S)) #/(hparams.nv+hparams.nh)
+        # Z = sum(exp.(-β2 .* F.S)) 
         # vh_recontruct = F.U * Diagonal(exp.(-β2 .* F.S)) * F.Vt / Z
         # v_reconstruct = F.U * exp.(-β2 .* F.S) / Z
         # h_reconstruct = F.V * exp.(-β2 .* F.S) / Z
 
-        Δw = (1.3 - (size(m.ΔwList,1) == 0 ? 0 : m.ΔwList[end]) ) .* vh_data - vh_recontruct #ad hoc
-        Δa = (1.3 - (size(m.ΔaList,1) == 0 ? 0 : m.ΔwList[end])) .* v_data - v_reconstruct
-        Δb = (1.3 - (size(m.ΔbList,1) == 0 ? 0 : m.ΔwList[end])) .* h_data - h_reconstruct
+        Δw = vh_data - vh_recontruct - hparams.γ .* J.w
+        Δa = v_data - v_reconstruct
+        Δb = h_data - h_reconstruct
+    elseif lProtocol == "EigenCD"
+        H_eff = H_effective(J,hparams; dev)
+        F = LinearAlgebra.svd(H_eff, full=false);
+        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.nh) |> dev .< σ.(β .* (F.V)))) |> dev
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (F.U)))) |> dev
 
-        # ϵ = size(m.ΔbList,1) == 0 ? 0 : m.ΔbList[end]
-        # Δw = vh_data - vh_recontruct ./ (1+ϵ) #ad hoc
-        # Δa = v_data - v_reconstruct ./ (1+ϵ)
-        # Δb = h_data - h_reconstruct ./ (1+ϵ)
-
+        for i in 1:hparams.t
+            rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+            rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev 
+        end
+ 
+        Z = sum(exp.(- β2 .* H(rbm, J)))
+        vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
+        v_reconstruct = rbm.v * exp.(- β2 .* H(rbm, J)) / Z
+        h_reconstruct = rbm.h * exp.(- β2 .* H(rbm, J)) / Z
+        
+        Δw = vh_data - vh_recontruct - hparams.γ .* J.w
+        Δa = v_data - v_reconstruct
+        Δb = h_data - h_reconstruct
     end
    
     
