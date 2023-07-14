@@ -32,23 +32,28 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "
         pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pLoss = plot!(m.ΔbList, yerr=m.ΔbSDList, label="Δb", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
-        pEigen = computeEigenonW(J, hparams; dev)
+        pEigen = saddlePointEnergySpectrum(J, hparams; dev)
         pWMean = plot(m.wMean, yerr=m.wVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pWMean = plot!(m.wTrMean, yerr=m.wTrVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
         hmSamp = heatmap(avSamp, rotate=90)
+
+        pLS = plotLandscapes(rbm, J, lnum ; Gidx=1, τ=t)
         
         p1 = plot(pEn, pLoss, layout=(1,2))
         p2 = plot(pF, pEnt, layout=(1,2))
         p3 = plot(pEigen, pWMean, layout=(1,2))
         p = plot(p1, p2, p3, layout=(3,1))
-        f = plot(p,hmSamp, layout=(2,1), size=(600,1000), margin = 8*Plots.mm)
+        f = plot(p,hmSamp, layout=(2,1), size=(900,1200), margin = 8*Plots.mm)
+        # f = plot(f, pLS, layout=(2,1), size=(900,1500), margin = 8*Plots.mm)
         if plotSample
             display(f)
+            display(pLS)
         else
             isdir(dict["bdir"] * "/models/$(dict["msg"])/Plots") || mkpath(dict["bdir"] * "/models/$(dict["msg"])/Plots")
             savefig(f, dict["bdir"] * "/models/$(dict["msg"])/Plots/$epoch.png")
+            savefig(pLS, dict["bdir"] * "/models/$(dict["msg"])/Plots/$(epoch)_LS.png")
         end
     elseif mode == "test"
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
@@ -68,7 +73,7 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "
         pLoss = plot!(m.ΔaList, ribbon=m.ΔaSDList, label="Δa", lw=1.5)
         pLoss = plot!(m.ΔbList, ribbon=m.ΔbSDList, label="Δb", lw=1.5)
         
-        pEigen = computeEigenonW(J, hparams; dev)
+        pEigen = saddlePointEnergySpectrum(J, hparams; dev)
         pWMean = plot(m.wMean, ribbon=m.wVar, label="w mean", lw=1.5)
         pWMean = plot!(m.wTrMean, ribbon=m.wTrVar, label="w mean", lw=1.5)
         
@@ -84,12 +89,23 @@ function computeEigenonW(J, hparams; dev)
     H_eff = H_effective(J,hparams; dev)
     F = LinearAlgebra.svd(H_eff)
     lambda = F.S |> cpu
-    f = plot(lambda, markershape=:circle, label="λ Jw", markersize=7, 
+    f = plot(J.a*J.b/(lambda .+ 1.e-10), markershape=:circle, label="λ Jw", markersize=7, 
     markershapes = :circle, lw=1.5, markerstrokewidth=0, frame=:box)
     W = randn(hparams.nv, hparams.nh) .* 0.1 / √(hparams.nh);
     F = LinearAlgebra.svd(W);
     f = plot!(F.S, markershape=:circle, label="λ rdm", markersize=7, 
     markershapes = :circle, lw=1.5, scale=:log10, markerstrokewidth=0, frame=:box)
+    return f
+end
+
+function saddlePointEnergySpectrum(J, hparams; dev)
+    F = LinearAlgebra.svd(J.w, full=false);
+    a0 = transpose(F.U) * J.a |> cpu
+    b0 = F.Vt * J.b  |> cpu ;
+    λ = F.S |> cpu ;
+    sp_energy = sort(a0 .* b0 ./ (λ .+ 1.e-10))
+    f = plot(sp_energy,  markershape=:circle, label=sum(sp_energy), markersize=7, 
+    markershapes = :circle, lw=1.5, markerstrokewidth=0, frame=:box)
     return f
 end
 
@@ -306,6 +322,50 @@ function correlation2(rbm, J, hparams; t_therm=10000, t_corr=10000, β=1)
     end
     corr
 end
+
+###############Gaussian Spin Landscape
+
+f(x,y,i, a0, b0, λ) = - (a0[i]*x + b0[i]*y + λ[i]*x*y )
+
+function plotLandscape(s, t, a0, b0, λ, i=1, gibbs=0)
+    p = plot(-15:10, -10:13, (x,y)->f(x,y,i, a0, b0, λ), st=:contourf, c=cgrad(:matter, 105, rev=true, scale = :exp, categorical=false), 
+    xlabel="x", ylabel="y", clabels=true)
+    p = plot!(s[i,:], t[i,:], markersize=7, markershapes = :circle, lw=0, markerstrokewidth=0, c=:blue, label="$i - $gibbs")
+    p
+end
+
+function plotLandscapes(rbm, J, lnum ; Gidx=1, τ=0)
+    F = LinearAlgebra.svd(J.w, full=true);
+    a0 = transpose(F.U) * J.a |> cpu
+    b0 = F.Vt * J.b  |> cpu ;
+    λ = F.S |> cpu ;
+    
+    s = cpu(F.U' * rbm.v)
+    t = cpu(F.Vt * rbm.h);
+    ###########################
+    if Gidx == 0
+        fig = plotLandscape(s, t, a0, b0, λ, Gidx, τ)
+    else
+        fig = []
+        for k in 1:4
+            push!(fig, plotLandscape(s, t, a0, b0, λ, k, τ))
+        end
+        fig = plot(fig..., size=(700,700))
+    end
+    ############################
+    return fig
+end
+
+function saddlePointEnergy(J, hparams; dev)
+    F = LinearAlgebra.svd(J.w, full=false);
+    a0 = transpose(F.U) * J.a |> cpu
+    b0 = F.Vt * J.b  |> cpu ;
+    λ = F.S |> cpu ;
+    sp_energy = sort(a0 .* b0 ./ (λ .+ 1.e-10))
+    
+    return sum(sp_energy)
+end
+    
 
 
 

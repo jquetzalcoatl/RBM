@@ -78,6 +78,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         append!(m.enData, mean(enEpoch))
         append!(m.enDataSD, std(enEpoch))
         append!(m.enRBM, a)
+        append!(m.enSP, saddlePointEnergy(J, hparams; dev))
         append!(m.Zdata, mean(ZEpoch))
         append!(m.Zrbm, b)
         append!(m.T, 1/β2)

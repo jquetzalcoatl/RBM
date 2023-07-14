@@ -26,6 +26,7 @@ mutable struct ModelStats
     enData
     enDataSD
     enRBM
+    enSP
     Zdata
     Zrbm
     T

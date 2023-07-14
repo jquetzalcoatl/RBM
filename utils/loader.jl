@@ -31,11 +31,11 @@ function loadData(; hparams, dsName="MNIST01", numbers = [0,1], normalize=false)
     x
 end
 
-function saveModel(rbm, J, m, hparams; opt,  path = "0", baseDir = "/home/javier/Projects/RBM/Results")
-    isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path")
+function saveModel(rbm, J, m, hparams; opt,  path = "0", baseDir = "/home/javier/Projects/RBM/Results", epoch=0)
+    isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path/J")
     # @info "$(baseDir)/models/$path"
     save("$(baseDir)/models/$path/RBM.jld", "rbm", RBM(rbm.v |> cpu, rbm.h |> cpu) )
-    save("$(baseDir)/models/$path/J.jld", "J", Weights(J.w |> cpu, J.a |> cpu, J.b |> cpu) )
+    save("$(baseDir)/models/$path/J/J_$(epoch).jld", "J", Weights(J.w |> cpu, J.a |> cpu, J.b |> cpu) )
     save("$(baseDir)/models/$path/m.jld", "m", m)
     save("$(baseDir)/models/$path/hparams.jld", "hparams", hparams)
     if hparams.optType == "Adam"
@@ -61,7 +61,15 @@ function loadModel(path = "0", dev = cpu, baseDir = "/home/javier/Projects/RBM/R
     @info "$(baseDir)/models/$path"
     rbm = load("$(baseDir)/models/$path/RBM.jld", "rbm")
     rbm = RBM([getfield(rbm, field) |> dev for field in fieldnames(RBM)]...)
-    J = load("$(baseDir)/models/$path/J.jld", "J")
+    try
+        JFiles = readdir("$(baseDir)/models/$path/J/")
+        idx = split(vcat(split.(sort(JFiles), "_")...)[end],".")[1]
+        J = load("$(baseDir)/models/$path/J/J_$(idx).jld", "J")
+        @info "Loadding model J_$(idx)."
+    catch
+        J = load("$(baseDir)/models/$path/J.jld", "J")
+    end
+    
     J = Weights([getfield(J, field) |> dev for field in fieldnames(Weights)]...)
     m = load("$(baseDir)/models/$path/m.jld", "m")
     hparams = load("$(baseDir)/models/$path/hparams.jld", "hparams")
