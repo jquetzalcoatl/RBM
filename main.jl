@@ -108,7 +108,7 @@ function main()
     global_logger(logger)
 
     saveDict(dict; path, baseDir = dict["bdir"])
-    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=10, numbers, logging=true, io)
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=1, numbers, logging=true, io)
     # saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     saveDict(dict; path, baseDir = dict["bdir"])
     close(io)

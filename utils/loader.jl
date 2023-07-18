@@ -4,29 +4,49 @@ include("init.jl")
 include("adamOpt.jl")
 include("structs.jl")
 
-function loadData(; hparams, dsName="MNIST01", numbers = [0,1], normalize=false)
+function loadData(; hparams, dsName="MNIST01", numbers = [0,1], normalize=false, testset=false)
     if dsName=="testing"
         #dummy DS
         dsSize=100
         train_data = rand([0,1],hparams.nv, dsSize)
         x = [train_data[:,i] for i in Iterators.partition(1:dsSize, hparams.batch_size)]
-    elseif dsName=="MNIST01"    
-        train_x = MLDatasets.MNIST(split=:train)[:].features
-        train_y = MLDatasets.MNIST(split=:train)[:].targets
-
-        train_x_samp = Array{Float32}(train_x[:, :, train_y .== numbers[1]] .≥ 0.5)
-        if size(numbers,1)>1
-            for idx in numbers[2:end]
-                train_x_tmp = Array{Float32}(train_x[:, :, train_y .== idx] .≥ 0.5)
-                train_x_samp = cat(train_x_samp, train_x_tmp, dims=3)
+    elseif dsName=="MNIST01"  
+        if testset == false
+            train_x = MLDatasets.MNIST(split=:train)[:].features
+            train_y = MLDatasets.MNIST(split=:train)[:].targets
+    
+            train_x_samp = Array{Float32}(train_x[:, :, train_y .== numbers[1]] .≥ 0.5)
+            if size(numbers,1)>1
+                for idx in numbers[2:end]
+                    train_x_tmp = Array{Float32}(train_x[:, :, train_y .== idx] .≥ 0.5)
+                    train_x_samp = cat(train_x_samp, train_x_tmp, dims=3)
+                end
             end
+            train_x = train_x_samp
+            @info size(train_x,3)
+            idx = randperm(size(train_x,3))
+            train_data = reshape(train_x, 28*28, :)[:,idx]
+            train_data = normalize ? train_data ./ sum(train_data, dims=1) : train_data
+            x = [train_data[:,i] for i in Iterators.partition(1:size(train_data,2), hparams.batch_size)][1:end-1]
+        else
+            train_x = MLDatasets.MNIST(split=:test)[:].features
+            train_y = MLDatasets.MNIST(split=:test)[:].targets
+    
+            train_x_samp = Array{Float32}(train_x .≥ 0.5)
+            # if size(numbers,1)>1
+            #     for idx in numbers[2:end]
+            #         train_x_tmp = Array{Float32}(train_x[:, :, train_y .== idx] .≥ 0.5)
+            #         train_x_samp = cat(train_x_samp, train_x_tmp, dims=3)
+            #     end
+            # end
+            train_x = train_x_samp
+            @info size(train_x,3)
+            # idx = randperm(size(train_x,3))
+            # train_data = reshape(train_x, 28*28, :)[:,idx]
+            # train_data = normalize ? train_data ./ sum(train_data, dims=1) : train_data
+            # x = [train_data[:,i] for i in Iterators.partition(1:size(train_data,2), hparams.batch_size)][1:end-1]
+            x = reshape(train_x, 28*28, :), train_y
         end
-        train_x = train_x_samp
-        @info size(train_x,3)
-        idx = randperm(size(train_x,3))
-        train_data = reshape(train_x, 28*28, :)[:,idx]
-        train_data = normalize ? train_data ./ sum(train_data, dims=1) : train_data
-        x = [train_data[:,i] for i in Iterators.partition(1:size(train_data,2), hparams.batch_size)][1:end-1]
     end
     x
 end
@@ -56,15 +76,20 @@ function saveModel(rbm, J, m, hparams; opt,  path = "0", baseDir = "/home/javier
     end
 end
 
-function loadModel(path = "0", dev = cpu, baseDir = "/home/javier/Projects/RBM/Results")
+function loadModel(path = "0", dev = cpu, baseDir = "/home/javier/Projects/RBM/Results"; idx=-1)
     isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path")
     @info "$(baseDir)/models/$path"
     rbm = load("$(baseDir)/models/$path/RBM.jld", "rbm")
     rbm = RBM([getfield(rbm, field) |> dev for field in fieldnames(RBM)]...)
     try
-        JFiles = readdir("$(baseDir)/models/$path/J/")
-        idx = split(vcat(split.(sort(JFiles), "_")...)[end],".")[1]
-        J = load("$(baseDir)/models/$path/J/J_$(idx).jld", "J")
+        if idx == -1
+            JFiles = readdir("$(baseDir)/models/$path/J/")
+            # idx = split(vcat(split.(sort(JFiles), "_")...)[end],".")[1]
+            idx = sort(parse.(Int, hcat(split.(hcat(split.(JFiles, "_")...)[2,:], ".")...)[1,:]))[end]
+            J = load("$(baseDir)/models/$path/J/J_$(idx).jld", "J")
+        else
+            J = load("$(baseDir)/models/$path/J/J_$(idx).jld", "J")
+        end
         @info "Loadding model J_$(idx)."
     catch
         J = load("$(baseDir)/models/$path/J.jld", "J")

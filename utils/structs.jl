@@ -47,3 +47,8 @@ mutable struct WeightOpt
     a
     b
 end
+
+mutable struct Test
+    x
+    y
+end

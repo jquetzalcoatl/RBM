@@ -2,7 +2,7 @@ using LinearAlgebra, Flux, CUDA
 include("adamOpt.jl")
 include("en.jl")
 
-function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "train", plotSample=true, epoch=0, dict, dev)
+function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "train", plotSample=true, epoch=0, dict, dev, TS)
     lnum = Int(sqrt(num))
     xh = sign.(rand(hparams.nh, num) .< 0.5) |> dev
     # xh = xh ./ sum(xh, dims=1)
@@ -39,7 +39,7 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
         hmSamp = heatmap(avSamp, rotate=90)
 
-        pLS = plotLandscapes(rbm, J, lnum ; Gidx=1, τ=t)
+        pLS = plotLandscapes(rbm, J, lnum ; τ=t, TS, dev, hparams)
         
         p1 = plot(pEn, pLoss, layout=(1,2))
         p2 = plot(pF, pEnt, layout=(1,2))
@@ -334,24 +334,49 @@ function plotLandscape(s, t, a0, b0, λ, i=1, gibbs=0)
     p
 end
 
-function plotLandscapes(rbm, J, lnum ; Gidx=1, τ=0)
+function plotLandscape(rbm, J, a0, b0, λ, F, i=1, gibbs=0; β=1, num=5, TS, dev, hparams)
+    p = plot(-15:10, -10:13, (x,y)->f(x,y,i, a0, b0, λ), st=:contour, fill=true, c=cgrad(:curl, 25, rev=false, categorical=true), 
+    xlabel="x", ylabel="y", clabels=true)
+    s = cpu(F.U' * rbm.v)
+    t = cpu(F.Vt * rbm.h);
+    p = plot!(s[i,:], t[i,:], markersize=4, markershapes = :circle, lw=0, markerstrokewidth=0.2, c=:black, label="$i - $gibbs")
+    for j in 0:9
+        idx = findall(x->x == j, TS.y)[1:num]
+        vSamp = TS.x[:,idx] |> dev
+        hSamp = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(β .* (J.w' * vSamp .+ J.b)))) |> dev ;
+        
+        s = cpu(F.U' * vSamp)
+        t = cpu(F.Vt * hSamp);
+        p = plot!(s[i,:], t[i,:], markersize=4, markershapes = :circle, lw=0, markerstrokewidth=0.2, c=:auto, label="$j")
+    end
+    p = plot!(legend = :outertopleft)
+    p
+end
+
+function plotLandscapes(rbm, J, lnum ; τ=0, kmin=1, kmax=4, TS, dev, hparams)
     F = LinearAlgebra.svd(J.w, full=true);
     a0 = transpose(F.U) * J.a |> cpu
     b0 = F.Vt * J.b  |> cpu ;
     λ = F.S |> cpu ;
-    
-    s = cpu(F.U' * rbm.v)
-    t = cpu(F.Vt * rbm.h);
-    ###########################
-    if Gidx == 0
-        fig = plotLandscape(s, t, a0, b0, λ, Gidx, τ)
-    else
-        fig = []
-        for k in 1:4
-            push!(fig, plotLandscape(s, t, a0, b0, λ, k, τ))
-        end
-        fig = plot(fig..., size=(700,700))
+
+    fig = []
+    for i in kmin:kmax
+        push!(fig, plotLandscape(rbm, J, a0, b0, λ, F, i, τ; TS, dev, hparams))
     end
+    fig = plot(fig..., size=(Int(500*(kmax-kmin)/2),Int(350*(kmax-kmin)/2)))
+    
+    # s = cpu(F.U' * rbm.v)
+    # t = cpu(F.Vt * rbm.h);
+    ###########################
+    # if Gidx == 0
+    #     fig = plotLandscape(s, t, a0, b0, λ, Gidx, τ)
+    # else
+    #     fig = []
+    #     for k in 1:kmax
+    #         push!(fig, plotLandscape(s, t, a0, b0, λ, k, τ))
+    #     end
+    #     fig = plot(fig..., size=(Int(350*kmax/2),Int(350*kmax/2)))
+    # end
     ############################
     return fig
 end

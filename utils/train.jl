@@ -18,6 +18,8 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     end
     
     rbm, J, m, hparams, rbmZ = initModel(; nv, nh, batch_size, lr, γ, t, gpu_usage, optType)
+    x, y = loadData(; hparams, dsName="MNIST01", numbers=collect(0:9), testset=true);
+    TS = Test(x,y)
 
     if optType=="Adam"
         opt = initOptW(hparams, J) 
@@ -45,11 +47,11 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     
     if annealing
         β0 = β2
-        ΔT = (1/(β0*100) - 1)*1/epochs      #(T₀/Tₙ - 1)/epochs
+        ΔT = (1/(β0*10) - 1)*1/epochs      #(T₀/Tₙ - 1)/epochs
         # β = β2
     end 
 
-    genSample(rbm, J, hparams, m; num, β, β2, t=t_samp, plotSample, epoch=0, dict, dev) 
+    genSample(rbm, J, hparams, m; num, β, β2, t=t_samp, plotSample, epoch=0, dict, dev, TS) 
     for epoch in 1:epochs
         enEpoch, ΔwEpoch, ΔaEpoch, ΔbEpoch, ZEpoch = [], [], [], [], []
         
@@ -97,10 +99,10 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         @info string(now())[1:end-4], epoch, m.enData[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β2
         logging ? flush(io) : nothing
         if epoch % snapshot == 0 
-            savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"]) : nothing
-            genSample(rbm, J, hparams, m; num, β, β2, t=t_samp, plotSample, epoch, dict, dev)         
+            savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"], epoch) : nothing
+            genSample(rbm, J, hparams, m; num, β, β2, t=t_samp, plotSample, epoch, dict, dev, TS)         
         end
-        if annealing && epoch > 0.5*epochs
+        if annealing && epoch > 10 #0.5*epochs
             β2 = β2 + β0*ΔT
             # β = β2
         end

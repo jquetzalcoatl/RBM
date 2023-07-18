@@ -29,7 +29,7 @@ function H_effective(J,hparams; dev)
     end
     if !isapprox(F.U * F.U', I)
         @warn "U eigenvectors don't span space"
-        # exit()
+        exit()
     end
     if !isapprox(F.Vt * F.V, I)
         @warn "V eigenvectors don't span space"
@@ -107,11 +107,11 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
     elseif lProtocol == "Eigen"
         H_eff = H_effective(J,hparams; dev)
         F = LinearAlgebra.svd(H_eff, full=false);
-        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.nh) |> dev .< σ.(β .* (F.V)))) |> dev
-        # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (F.U)))) |> dev 
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.nh) |> dev .< σ.(β .* (F.V)))) |> dev
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (F.U)))) |> dev 
         
-        rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(F.V[:, end],1,hparams.batch_size))))) |> dev
-        rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(F.U[:, end],1,hparams.batch_size))))) |> dev 
+        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(F.V[:, end],1,hparams.batch_size))))) |> dev
+        # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(F.U[:, end],1,hparams.batch_size))))) |> dev 
  
         Z = sum(exp.(- β2 .* H(rbm, J)))
         vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
@@ -123,8 +123,8 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         # h_reconstruct = F.V * exp.(-β2 .* F.S) / Z
 
         Δw = vh_data - vh_recontruct - hparams.γ .* J.w
-        Δa = v_data - v_reconstruct
-        Δb = h_data - h_reconstruct
+        Δa = 0.1 .* v_data - v_reconstruct
+        Δb = 0.1 .* h_data - h_reconstruct
     elseif lProtocol == "EigenCD"
         H_eff = H_effective(J,hparams; dev)
         F = LinearAlgebra.svd(H_eff, full=false);
