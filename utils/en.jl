@@ -46,10 +46,10 @@ Loss function
 ```
 """
 function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm", thrsh=-400, m)
+    
     rbm.v = x_data |> dev
     
     rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-    # rbm.h = rbm.h ./ sum(rbm.h, dims=1)
     Z = sum(exp.(- β2 .* H(rbm, J)))
 
     # if isinf(Z)
@@ -91,15 +91,12 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
     if lProtocol in ["Rdm", "CD", "PCD"]
         for i in 1:hparams.t
             rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
-            # rbm.h = rbm.h ./ sum(rbm.h, dims=1)
             rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev 
-            # rbm.v = rbm.v ./ sum(rbm.v, dims=1)
         end
-        Z = sum(exp.(- β2 .* H(rbm, J)))
     
-        vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
-        v_reconstruct = rbm.v * exp.(- β2 .* H(rbm, J)) / Z
-        h_reconstruct = rbm.h * exp.(- β2 .* H(rbm, J)) / Z
+        vh_recontruct = rbm.v * CuArray(rbm.h')
+        v_reconstruct = reshape(mean(rbm.v, dims=2),:) # rbm.v * exp.(- β2 .* H(rbm, J)) / Z
+        h_reconstruct = reshape(mean(rbm.h, dims=2),:) # rbm.h * exp.(- β2 .* H(rbm, J)) / Z
         
         Δw = vh_data - vh_recontruct - hparams.γ .* J.w
         Δa = v_data - v_reconstruct
@@ -110,9 +107,6 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.nh) |> dev .< σ.(β .* (F.V)))) |> dev
         rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (F.U)))) |> dev 
         
-        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (repeat(F.V[:, end],1,hparams.batch_size))))) |> dev
-        # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.nh) |> dev .< σ.(β .* (repeat(F.U[:, end],1,hparams.batch_size))))) |> dev 
- 
         Z = sum(exp.(- β2 .* H(rbm, J)))
         vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
         v_reconstruct = rbm.v * exp.(- β2 .* H(rbm, J)) / Z
@@ -144,12 +138,42 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
         Δw = vh_data - vh_recontruct - hparams.γ .* J.w
         Δa = v_data - v_reconstruct
         Δb = h_data - h_reconstruct
+    elseif lProtocol == "CQA"
+        F = LinearAlgebra.svd(J.w, full=true);
+        a0 = F.U' * J.a
+        b0 = F.Vt * J.b
+        L = dev(ones(hparams.nh)) # F.S .* 0.5
+        η = dev(randn(hparams.nh))
+        Δy = dev(randn(hparams.nh)) .* F.S .* 0.01
+        x = cat(-b0 ./ F.S .+ η .* L, dev(zeros(hparams.nv-hparams.nh)), dims=1)
+        y = -a0[1:hparams.nh] ./ F.S .+ η .* L .+ Δy
+        # rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.( F.V * dev(cat(Diagonal(F.S), (zeros(hparams.nv-hparams.nh,hparams.nh)),dims=1))' * x + J.b))) |> dev
+        # rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.( F.U * dev(cat(Diagonal(F.S), (zeros(hparams.nv-hparams.nh,hparams.nh)),dims=1)) * y + J.a))) |> dev
+        mat = dev(cat(Diagonal([mean(F.S) for i in 1:hparams.nh ]), (zeros(hparams.nv-hparams.nh,hparams.nh)),dims=1))
+        
+        rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.( F.V * mat' * x + J.b))) |> dev
+        rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.( F.U * mat * y + J.a))) |> dev
+        
+        for i in 1:hparams.t
+            rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
+            rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev 
+        end
+        Z = sum(exp.(- β2 .* H(rbm, J)))
+    
+        vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
+        v_reconstruct = rbm.v * exp.(- β2 .* H(rbm, J)) / Z
+        h_reconstruct = rbm.h * exp.(- β2 .* H(rbm, J)) / Z
+        
+        Δw = vh_data - vh_recontruct - hparams.γ .* J.w
+        Δa = v_data - v_reconstruct
+        Δb = h_data - h_reconstruct
     end
    
     
 
     Δw, Δa, Δb
 end
+
 
 function updateJ!(J, Δw, Δa, Δb, opt; hparams)
     if hparams.optType == "Adam"
