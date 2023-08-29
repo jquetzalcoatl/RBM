@@ -18,7 +18,7 @@ function parseCommandLine()
       "--epochs", "-e"
         help = "Epochs"
         arg_type = Int64
-        default = 5000
+        default = 100
       "--batchsize", "-b"
         help = "Batch Size"
         arg_type = Int64
@@ -97,15 +97,20 @@ function main()
     path = dict["msg"]
     gpu_usage = dict["gpu"]
     numbers = dict["numbers"]
-    if gpu_usage
-        CUDA.device!(dict["dev"])
-        ENV["JULIA_CUDA_HARD_MEMORY_LIMIT"]=dict["maxmem"]
-    end
     
     isdir(dict["bdir"] * "/models/$path") || mkpath(dict["bdir"] * "/models/$path")
     io = open(dict["bdir"] * "/models/$path/log.txt", "w+")
     logger = SimpleLogger(io)
     global_logger(logger)
+    
+    if gpu_usage
+        try
+            CUDA.device!(dict["dev"])
+        catch
+            @warn "CUDA.device! prompt error. Skipping selecting device"
+        end
+        ENV["JULIA_CUDA_HARD_MEMORY_LIMIT"]=dict["maxmem"]
+    end
 
     saveDict(dict; path, baseDir = dict["bdir"])
     rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=1, numbers, logging=true, io)
