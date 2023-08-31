@@ -45,7 +45,7 @@ Loss function
 Δbₗ = β (⟨hₗ⟩_{p(h),p_{data}} - ⟨hₗ⟩_{p(v,h)})
 ```
 """
-function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm", thrsh=-400, m)
+function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm", thrsh=-400, m, bw=true)
     
     rbm.v = x_data |> dev
     
@@ -93,10 +93,16 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
             rbm.h = Array{Float32}(sign.(rand(hparams.nh, hparams.batch_size) |> dev .< σ.(β .* (J.w' * rbm.v .+ J.b)))) |> dev
             rbm.v = Array{Float32}(sign.(rand(hparams.nv, hparams.batch_size) |> dev .< σ.(β .* (J.w * rbm.h .+ J.a)))) |> dev 
         end
-    
-        vh_recontruct = rbm.v * CuArray(rbm.h')
-        v_reconstruct = reshape(mean(rbm.v, dims=2),:) # rbm.v * exp.(- β2 .* H(rbm, J)) / Z
-        h_reconstruct = reshape(mean(rbm.h, dims=2),:) # rbm.h * exp.(- β2 .* H(rbm, J)) / Z
+        if bw
+            Z = sum(exp.(- β2 .* H(rbm, J)))
+            vh_recontruct = rbm.v * Diagonal(exp.(- β2 .* H(rbm, J))) * CuArray(rbm.h') / Z
+            v_reconstruct = rbm.v * exp.(- β2 .* H(rbm, J)) / Z
+            h_reconstruct = rbm.h * exp.(- β2 .* H(rbm, J)) / Z
+        else
+            vh_recontruct = rbm.v * CuArray(rbm.h')
+            v_reconstruct = reshape(mean(rbm.v, dims=2),:)
+            h_reconstruct = reshape(mean(rbm.h, dims=2),:)
+        end
         
         Δw = vh_data - vh_recontruct - hparams.γ .* J.w
         Δa = v_data - v_reconstruct

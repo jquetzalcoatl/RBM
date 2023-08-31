@@ -58,7 +58,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         for i in eachindex(x)
             # @info i
             
-            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, β2, dev, lProtocol, m)
+            Δw, Δa, Δb = loss(rbm, J, x[i], x_Gibbs[i]; hparams, β, β2, dev, lProtocol, m, bw=dict["bw"])
             if learnType == "PCD"
                 x_Gibbs[i] = rbm.v |> cpu
             end
@@ -102,7 +102,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
             savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"], epoch) : nothing
             genSample(rbm, J, hparams, m; num, β, β2, t=t_samp, plotSample, epoch, dict, dev, TS)         
         end
-        if annealing && epoch > 10 #0.5*epochs
+        if annealing && epoch > 5 #0.5*epochs
             β2 = β2 + β0*ΔT
             # β = β2
         end

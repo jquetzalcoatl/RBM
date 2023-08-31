@@ -76,6 +76,10 @@ function parseCommandLine()
         help = "Specify max memory"
         arg_type = String
         default = "1GiB"
+      "--bw"
+        help = "Use Boltzmann weight after Gibbs sampling"
+        arg_type = Bool
+        default = true
     end
   
     return parse_args(s) # the result is a Dict{String,Any
