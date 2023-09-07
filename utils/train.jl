@@ -47,7 +47,11 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     
     if annealing
         β0 = β2
-        ΔT = (1/(β0*1) - 1)*1/epochs      #(T₀/Tₙ - 1)/epochs
+        if "tout" in keys(dict)
+            ΔT = (1/(β0*dict["tout"]) - 1)*1/(epochs-5)      #(T₀/Tₙ - 1)/epochs
+        else
+            ΔT = (1/(β0*10) - 1)*1/(epochs-5)      #(T₀/Tₙ - 1)/epochs
+        end
         # β = β2
     end 
 

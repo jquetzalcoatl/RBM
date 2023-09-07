@@ -80,6 +80,10 @@ function parseCommandLine()
         help = "Use Boltzmann weight after Gibbs sampling"
         arg_type = Bool
         default = true
+      "--tout"
+        help = "Final Temp if anneal = true"
+        arg_type = Float64
+        default = 10.0
     end
   
     return parse_args(s) # the result is a Dict{String,Any
