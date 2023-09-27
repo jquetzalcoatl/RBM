@@ -3,7 +3,7 @@ using Plots.PlotMeasures
 
 include("utils/train.jl")
 
-function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname = "CD-500-T1000-5-BW-replica1-L"; l=100, nv=28*28, nh=500)
+function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname = "CD-500-T1000-5-BW-replica1-L"; l=30, nv=28*28, nh=500)
     s = size(readdir("$(PATH)/models/$(modelname)/J"),1)
     a0s = Array(zeros(nv,l))
     b0s = Array(zeros(nh,l))
@@ -14,8 +14,10 @@ function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname 
     R = Dict()
     Θ = Dict()
 
-    for i in 1:l
-        idx = Int(s/l*i)
+    Δidx = s >= l ? Int(floor(s/l)) : 1
+    for i in 1:min(l,s)
+        idx = Δidx*i
+        
         J = load("$(PATH)/models/$(modelname)/J/J_$(idx).jld", "J")
         J.w = gpu(J.w)
         J.b = gpu(J.b)
@@ -134,7 +136,16 @@ modelName = "CD-500-T1000-5-BW-replica1-L"
 rbm, J, m, hparams, opt = loadModel(modelName, gpu);
 x_i, y_i = loadData(; hparams, dsName="MNIST01", numbers=collect(0:9), testset=true);
 for i in 1:5
-    modelname = "CD-500-T1000-5-BW-replica$(i)-L"
+    # modelname = "Rdm-500-T1-replica$(i)"
+    modelname = "Rdm-500-T1-BW-replica$(i)"
+    # modelname = "CD-500-T1-replica$(i)"
+    # modelname = "CD-500-T1-BW-replica$(i)"
+    # modelname = "CD-500-T10-BW-replica$(i)"
+    # modelname = "Rdm-500-T10-BW-replica$(i)"
+    # modelname = "CD-500-T100-BW-replica$(i)"
+    # modelname = "Rdm-500-T100-BW-replica$(i)"
+    
+    # modelname = "CD-500-T1000-5-BW-replica$(i)-L"
     # modelname = "PCD-500-replica$(i)"
     λs, a0s, b0s, R, Θ, x_s, y_s = loadLandscapes(PATH, modelname; l, nv, nh);
     sp = a0s[1:nh,:] .* b0s ./ λs;
