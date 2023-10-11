@@ -29,7 +29,7 @@ function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname 
         F = LinearAlgebra.svd(J.w, full=true);
 
         v,h = data_val_samples(F)
-        umean, wmean, σ_2u, σ_2w, a0, b0, λ = compute_stats(rbm.v, rbm.h, J)
+        umean, wmean, σ_2u, σ_2w, a0, b0, λ = compute_stats(v, h, J)
         U, Σ, F, Z = compute_therm(umean, wmean, σ_2u, σ_2w, a0, b0, λ)
 
         Us[i] = U
@@ -38,7 +38,7 @@ function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname 
         Zs[i] = Z
         
         v,h = gibbs_sampling(v,h,J)
-        umean, wmean, σ_2u, σ_2w, a0, b0, λ = compute_stats(rbm.v, rbm.h, J)
+        umean, wmean, σ_2u, σ_2w, a0, b0, λ = compute_stats(v, h, J)
         U, Σ, F, Z = compute_therm(umean, wmean, σ_2u, σ_2w, a0, b0, λ)
         
         UsRBM[i] = U
@@ -114,9 +114,10 @@ function compute_stats(v, h, J)
 end
 
 function compute_therm(umean, wmean, σ_2u, σ_2w, a0, b0, λ)
-    U = sum(a0 .* b0 ./ λ .+ 1/2 .* (umean ./ (σ_2u .* (1 .+ λ .* σ_2u)) .+  wmean .^ 2 ./ (σ_2w .* (1 .- λ .* σ_2w))))
-    Σ = sum(log.( σ_2u .* σ_2w))/2
-    F = U - Σ - size(λ,1)*log(2π)
+    # U = sum(a0 .* b0 ./ λ .+ 1/2 .* (umean .^ 2 ./ (σ_2u .* (1 .+ λ .* σ_2u)) .+  wmean .^ 2 ./ (σ_2w .* (1 .- λ .* σ_2w)))) - size(λ,1)
+    U = sum(a0 .* b0 ./ λ .- λ/2 .* (umean .^ 2 ./ (1 .+ λ .* σ_2u) .-  wmean .^ 2 ./ (1 .- λ .* σ_2w))) - size(λ,1)
+    Σ = sum(log.( σ_2u .* σ_2w))/2 + size(λ,1)*(log(2π) - 1)
+    F = U - Σ
     return U, Σ, F, exp(-F)
 end
 
@@ -132,7 +133,7 @@ function gibbs_sampling(v,h,J)
     J.b = gpu(J.b)
     J.a = gpu(J.a)
     
-    for i in 1:10000
+    for i in 1:5000
         h = Array{Float32}(sign.(rand(nh, num) |> dev .< σ.(β .* (J.w' * v .+ J.b)))) |> dev
         v = Array{Float32}(sign.(rand(nv, num) |> dev .< σ.(β .* (J.w * h .+ J.a)))) |> dev 
     end
@@ -179,8 +180,8 @@ for i in 1:5
     # modelname = "CD-500-T100-BW-replica$(i)"
     # modelname = "Rdm-500-T100-BW-replica$(i)"
     
-    modelname = "CD-500-T1000-5-BW-replica$(i)-L"
-    # modelname = "PCD-500-replica$(i)"
+    # modelname = "CD-500-T1000-5-BW-replica$(i)-L"
+    modelname = "PCD-500-replica$(i)"
     Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM = loadLandscapes(PATH, modelname; l, nv, nh);
     
     saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
