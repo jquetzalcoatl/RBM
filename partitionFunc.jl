@@ -5,7 +5,7 @@ using RestrictedBoltzmannMachines
 # using Statistics: mean, std, middle
 # using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!,
-    aise, raise, logmeanexp, logstdexp, sample_v_from_v
+    aise, raise, logmeanexp, logstdexp, sample_v_from_v, log_pseudolikelihood
 
 include("utils/train.jl")
 
@@ -16,6 +16,7 @@ function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname 
     # nbetas = 10_000
     R_ais = Vector{Float64}[]
     R_rev = Vector{Float64}[]
+    LL = Vector{Float64}[]
 
     Δidx = s >= l ? Int(floor(s/l)) : 1
     for i in 1:min(l,s)
@@ -35,13 +36,14 @@ function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname 
         
         push!(R_ais, aise(rbm; nbetas, nsamples, init) )
         push!(R_rev, raise(rbm; nbetas, init, v=v[:,:,rand(1:size(v, 3), nsamples)]) )
+        push!(LL, mean(log_pseudolikelihood(CudaRBMs.cpu(rbm), train_x)))
         
     end
 
-    return R_ais, R_rev
+    return R_ais, R_rev, LL
 end
 
-function saveStuff(R_ais, R_rev, modelname)
+function saveStuff(R_ais, R_rev, LL, modelname)
     isdir("$(PATH)/Figs/$(modelname)") || mkpath("$(PATH)/Figs/$(modelname)")
     f = plot( -mean.(R_ais), ribbon=std.(R_ais), xscale=:identity, color=:blue, label="AIS", markershape=:circle)
     f = plot!( -mean.(R_rev), ribbon=std.(R_rev), color=:black, label="reverse AIS", s=:auto, markershapes = :square, lw=0, markerstrokewidth=0)
@@ -49,7 +51,12 @@ function saveStuff(R_ais, R_rev, modelname)
     
     savefig(f, "$(PATH)/Figs/$(modelname)/log_partition_$(modelname).png")
     
-    jldsave("$(PATH)/Figs/$(modelname)/partition_cossio.jld", rais=R_ais, rrev=R_rev)
+    f = plot( LL, xscale=:identity, color=:blue, label="pseudolikelihood", markershape=:circle)
+    f = plot!(size=(700,500), xlabel="Epochs (x10)", frame=:box, ylabel="log(PL)", margin = 15mm)
+    
+    savefig(f, "$(PATH)/Figs/$(modelname)/pseudolikelihood_$(modelname).png")
+    
+    jldsave("$(PATH)/Figs/$(modelname)/partition_cossio.jld", rais=R_ais, rrev=R_rev, ll=LL)
     
 end
 
@@ -78,7 +85,7 @@ for i in 1:5
     
     # modelname = "CD-500-T1000-5-BW-replica$(i)-L"
     modelname = "PCD-500-replica$(i)"
-    R_ais, R_rev = loadLandscapes(PATH, modelname; l, nv, nh, nbetas);
+    R_ais, R_rev, LL = loadLandscapes(PATH, modelname; l, nv, nh, nbetas);
     
-    saveStuff(R_ais, R_rev, modelname)
+    saveStuff(R_ais, R_rev, LL, modelname)
 end

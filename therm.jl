@@ -180,8 +180,8 @@ for i in 1:5
     # modelname = "CD-500-T100-BW-replica$(i)"
     # modelname = "Rdm-500-T100-BW-replica$(i)"
     
-    # modelname = "CD-500-T1000-5-BW-replica$(i)-L"
-    modelname = "PCD-500-replica$(i)"
+    modelname = "CD-500-T1000-5-BW-replica$(i)-L"
+    # modelname = "PCD-500-replica$(i)"
     Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM = loadLandscapes(PATH, modelname; l, nv, nh);
     
     saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
