@@ -17,7 +17,11 @@ function loadLandscapes(PATH = "/home/javier/Projects/RBM/Results/",  modelname 
     # nbetas = 10_000
     R_ais = Vector{Float64}[]
     R_rev = Vector{Float64}[]
+<<<<<<< HEAD
     LL = []
+=======
+    LL = Vector{Float64}[]
+>>>>>>> af1f9ac8aa8b66e12f90dc4f5abdf9d17c2de944
 
     Δidx = s >= l ? Int(floor(s/l)) : 1
     for i in 1:min(l,s)
@@ -73,6 +77,7 @@ train_x = MLDatasets.MNIST(split=:train)[:].features
 train_y = MLDatasets.MNIST(split=:train)[:].targets;
 train_x = Array{Float}(train_x[:, :, :] .> 0.5);
 
+<<<<<<< HEAD
 for model in ["Rdm-500-T10-BW-replica", "Rdm-500-T100-BW-replica", "CD-500-T1-replica", "CD-500-T1-BW-replica", "CD-500-T10-BW-replica", "CD-500-T100-BW-replica", "CD-500-T1000-5-BW-replica-L", "PCD-500-replica", "PCD-100-replica"]
     for i in 1:5
         # modelname = "Rdm-500-T1-replica$(i)"
@@ -95,4 +100,22 @@ for model in ["Rdm-500-T10-BW-replica", "Rdm-500-T100-BW-replica", "CD-500-T1-re
 
         saveStuff(R_ais, R_rev, LL, modelname)
     end
+=======
+modelName = "PCD-500-replica2"
+for i in 1:5
+    # modelname = "Rdm-500-T1-replica$(i)"
+    # modelname = "Rdm-500-T1-BW-replica$(i)"
+    # modelname = "CD-500-T1-replica$(i)"
+    # modelname = "CD-500-T1-BW-replica$(i)"
+    # modelname = "CD-500-T10-BW-replica$(i)"
+    # modelname = "Rdm-500-T10-BW-replica$(i)"
+    # modelname = "CD-500-T100-BW-replica$(i)"
+    # modelname = "Rdm-500-T100-BW-replica$(i)"
+    
+    # modelname = "CD-500-T1000-5-BW-replica$(i)-L"
+    modelname = "PCD-500-replica$(i)"
+    R_ais, R_rev, LL = loadLandscapes(PATH, modelname; l, nv, nh, nbetas);
+    
+    saveStuff(R_ais, R_rev, LL, modelname)
+>>>>>>> af1f9ac8aa8b66e12f90dc4f5abdf9d17c2de944
 end

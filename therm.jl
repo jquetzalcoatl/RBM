@@ -170,6 +170,7 @@ dev = gpu
 modelName = "CD-500-T1000-5-BW-replica1-L"
 rbm, J, m, hparams, opt = loadModel(modelName, gpu);
 x_i, y_i = loadData(; hparams, dsName="MNIST01", numbers=collect(0:9), testset=true);
+<<<<<<< HEAD
 for model in ["Rdm-500-T10-BW-replica", "Rdm-500-T100-BW-replica", "CD-500-T1-replica", "CD-500-T1-BW-replica", "CD-500-T10-BW-replica", "CD-500-T100-BW-replica", "CD-500-T1000-5-BW-replica-L", "PCD-500-replica", "PCD-100-replica"]
     for i in 1:5
         # modelname = "Rdm-500-T1-replica$(i)"
@@ -193,4 +194,21 @@ for model in ["Rdm-500-T10-BW-replica", "Rdm-500-T100-BW-replica", "CD-500-T1-re
 
         saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
     end
+=======
+for i in 1:5
+    # modelname = "Rdm-500-T1-replica$(i)"
+    # modelname = "Rdm-500-T1-BW-replica$(i)"
+    # modelname = "CD-500-T1-replica$(i)"
+    # modelname = "CD-500-T1-BW-replica$(i)"
+    # modelname = "CD-500-T10-BW-replica$(i)"
+    # modelname = "Rdm-500-T10-BW-replica$(i)"
+    # modelname = "CD-500-T100-BW-replica$(i)"
+    # modelname = "Rdm-500-T100-BW-replica$(i)"
+    
+    modelname = "CD-500-T1000-5-BW-replica$(i)-L"
+    # modelname = "PCD-500-replica$(i)"
+    Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM = loadLandscapes(PATH, modelname; l, nv, nh);
+    
+    saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
+>>>>>>> af1f9ac8aa8b66e12f90dc4f5abdf9d17c2de944
 end
