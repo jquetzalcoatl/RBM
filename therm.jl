@@ -113,10 +113,12 @@ function compute_stats(v, h, J)
     return umean, wmean, σ_2u, σ_2w, a0, b0, λ
 end
 
-function compute_therm(umean, wmean, σ_2u, σ_2w, a0, b0, λ)
+function compute_therm(umean, wmean, σ_2u, σ_2w, a0, b0, λ; TOL=1e-2)
+    u_softTerm = sign.(1 .- σ_2u .* λ) * TOL
+    w_softTerm = sign.(1 .- σ_2w .* λ) * TOL
     # U = sum(a0 .* b0 ./ λ .+ 1/2 .* (umean .^ 2 ./ (σ_2u .* (1 .+ λ .* σ_2u)) .+  wmean .^ 2 ./ (σ_2w .* (1 .- λ .* σ_2w)))) - size(λ,1)
-    U = sum(a0 .* b0 ./ λ .- λ/2 .* (umean .^ 2 ./ (1 .+ λ .* σ_2u) .-  wmean .^ 2 ./ (1 .- λ .* σ_2w))) - size(λ,1)
-    Σ = sum(log.( σ_2u .* σ_2w))/2 + size(λ,1)*(log(2π) - 1)
+    U = sum(a0 .* b0 ./ λ .- λ/2 .* (umean .^ 2 ./ (1 .+ λ .* σ_2u .+ u_softTerm) .-  wmean .^ 2 ./ (1 .- λ .* σ_2w .+ w_softTerm))) + size(λ,1)
+    Σ = sum(log.( σ_2u .* σ_2w))/2 + size(λ,1)*(log(2π) + 1)
     F = U - Σ
     return U, Σ, F, exp(-F)
 end
@@ -161,54 +163,30 @@ function saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
     
 end
 
-PATH = "/home/javier/Projects/RBM/Results/"
-l=100
-nv=28*28
-nh=500
-dev = gpu
-β = 1.0
-modelName = "CD-500-T1000-5-BW-replica1-L"
-rbm, J, m, hparams, opt = loadModel(modelName, gpu);
-x_i, y_i = loadData(; hparams, dsName="MNIST01", numbers=collect(0:9), testset=true);
-<<<<<<< HEAD
-for model in ["Rdm-500-T10-BW-replica", "Rdm-500-T100-BW-replica", "CD-500-T1-replica", "CD-500-T1-BW-replica", "CD-500-T10-BW-replica", "CD-500-T100-BW-replica", "CD-500-T1000-5-BW-replica-L", "PCD-500-replica", "PCD-100-replica"]
-    for i in 1:5
-        # modelname = "Rdm-500-T1-replica$(i)"
-        # modelname = "Rdm-500-T1-BW-replica$(i)"
-        # modelname = "CD-500-T1-replica$(i)"
-        # modelname = "CD-500-T1-BW-replica$(i)"
-        # modelname = "CD-500-T10-BW-replica$(i)"
-        # modelname = "Rdm-500-T10-BW-replica$(i)"
-        # modelname = "CD-500-T100-BW-replica$(i)"
-        # modelname = "Rdm-500-T100-BW-replica$(i)"
 
-        # modelname = "CD-500-T1000-5-BW-replica$(i)-L"
-        # modelname = "PCD-500-replica$(i)"
-        if model != "CD-500-T1000-5-BW-replica-L"
-            modelname = model * "$(i)"
-        else
-            modelname = "CD-500-T1000-5-BW-replica$(i)-L"
+if abspath(PROGRAM_FILE) == @__FILE__
+    PATH = "/home/javier/Projects/RBM/Results/"
+    l=100
+    nv=28*28
+    nh=500
+    dev = gpu
+    β = 1.0
+    modelName = "CD-500-T1000-5-BW-replica1-L"
+    rbm, J, m, hparams, opt = loadModel(modelName, gpu);
+    x_i, y_i = loadData(; hparams, dsName="MNIST01", numbers=collect(0:9), testset=true);
+
+    # for model in ["Rdm-500-T10-BW-replica", "Rdm-500-T100-BW-replica", "CD-500-T1-replica", "CD-500-T1-BW-replica", "CD-500-T10-BW-replica", "CD-500-T100-BW-replica", "CD-500-T1000-5-BW-replica-L", "PCD-500-replica", "PCD-100-replica"]
+    for model in ["CD-500-T1000-5-BW-replica-L", "PCD-500-replica", "PCD-100-replica"]
+        for i in 1:5
+            if model != "CD-500-T1000-5-BW-replica-L"
+                modelname = model * "$(i)"
+            else
+                modelname = "CD-500-T1000-5-BW-replica$(i)-L"
+            end
+            @info modelname
+            Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM = loadLandscapes(PATH, modelname; l, nv, nh);
+
+            saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
         end
-        @info modelname
-        Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM = loadLandscapes(PATH, modelname; l, nv, nh);
-
-        saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
-    end
-=======
-for i in 1:5
-    # modelname = "Rdm-500-T1-replica$(i)"
-    # modelname = "Rdm-500-T1-BW-replica$(i)"
-    # modelname = "CD-500-T1-replica$(i)"
-    # modelname = "CD-500-T1-BW-replica$(i)"
-    # modelname = "CD-500-T10-BW-replica$(i)"
-    # modelname = "Rdm-500-T10-BW-replica$(i)"
-    # modelname = "CD-500-T100-BW-replica$(i)"
-    # modelname = "Rdm-500-T100-BW-replica$(i)"
-    
-    modelname = "CD-500-T1000-5-BW-replica$(i)-L"
-    # modelname = "PCD-500-replica$(i)"
-    Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM = loadLandscapes(PATH, modelname; l, nv, nh);
-    
-    saveModePlot(Us, Σs, Fs, Zs, UsRBM, ΣsRBM, FsRBM, ZsRBM, modelname)
->>>>>>> af1f9ac8aa8b66e12f90dc4f5abdf9d17c2de944
+    end  
 end
