@@ -113,7 +113,7 @@ function compute_stats(v, h, J)
     return umean, wmean, σ_2u, σ_2w, a0, b0, λ
 end
 
-function compute_therm(umean, wmean, σ_2u, σ_2w, a0, b0, λ; TOL=1e-2)
+function compute_therm(umean, wmean, σ_2u, σ_2w, a0, b0, λ; TOL=0.05)
     u_softTerm = sign.(1 .- σ_2u .* λ) * TOL
     w_softTerm = sign.(1 .- σ_2w .* λ) * TOL
     # U = sum(a0 .* b0 ./ λ .+ 1/2 .* (umean .^ 2 ./ (σ_2u .* (1 .+ λ .* σ_2u)) .+  wmean .^ 2 ./ (σ_2w .* (1 .- λ .* σ_2w)))) - size(λ,1)
