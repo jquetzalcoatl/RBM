@@ -74,7 +74,7 @@ function data_val_samples(F)
         v_s[string(num_label)] = cpu(v)
         h_s[string(num_label)] = cpu(h);
     end
-    return hcat([v_s["$nl"] for nl in 0:9]...), hcat([h_s["$nl"] for nl in 0:9]...)
+    return hcat([v_s["$nl"] for nl in 0:9]...), hcat([h_s["$nl"] for nl in 0:9]...), hcat([x_s["$nl"] for nl in 0:9]...), hcat([y_s["$nl"] for nl in 0:9]...)
 end
 
 
