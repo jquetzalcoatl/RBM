@@ -128,8 +128,8 @@ function main()
                 # lpl = mean(log_pseudolikelihood(rbm, train_x))
                 # @trace history iter lpl
                 J.b = rbm.hidden.θ
-                J.a = reshape(rbm.visible.θ,28*28)
-                J.w = reshape(rbm.w,28*28,500);
+                J.a = reshape(rbm.visible.θ,hparams.nv)
+                J.w = reshape(rbm.w,hparams.nv,hparams.nh);
                 saveModel(rbmJ, J, m, hparams; opt, path, epoch=Int(iter/iter_per_epoch))
             end
         end
