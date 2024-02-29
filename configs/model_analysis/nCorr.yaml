@@ -1,0 +1,8 @@
+files: 
+  - PCD-500-replica1
+  - PCD-500-replica2
+  - PCD-500-replica3
+  - PCD-500-replica4
+  - PCD-500-replica5
+
+output: Correlations/

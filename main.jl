@@ -128,5 +128,6 @@ function main()
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
+    # julia main.jl --bw true -a true -D CD -T 0.001 -m CD-500-T1000-BW-replica1-L --dev 1 --maxmem 3GiB -e 1000 &
     main()
 end

@@ -124,39 +124,3 @@ function loadDict(path = "0", baseDir = "/home/javier/Projects/RBM/Results")
     dict = load("$(baseDir)/models/$path/dict.jld", "dict")
     return dict
 end
-    
-    
-
-# function saveModel(rbm, J, m, hparams; opt,  path = "0", baseDir = "/home/javier/Projects/RBM/Results")
-#     isdir(baseDir * "/models/$path") || mkpath(baseDir * "/models/$path")
-#     @info "$(baseDir)/models/$path"
-#     @save "$(baseDir)/models/$path/RBM.bson" rbm
-#     @save "$(baseDir)/models/$path/J.bson" J
-#     @save "$(baseDir)/models/$path/m.bson" m
-#     @save "$(baseDir)/models/$path/hparams.bson" hparams
-#     if hparams.optType == "Adam"
-#         @save "$(baseDir)/models/$path/Opt.bson" opt
-#     end
-# end
-
-# function loadModel(path = "0", dev = cpu, baseDir = "/home/javier/Projects/RBM/Results")
-#     @load "$(baseDir)/models/$path/RBM.bson" rbm
-#     rbm = RBM([getfield(rbm, field) |> dev for field in fieldnames(RBM)]...)
-#     @load "$(baseDir)/models/$path/J.bson" J
-#     J = Weights([getfield(J, field) |> dev for field in fieldnames(Weights)]...)
-#     @load "$(baseDir)/models/$path/m.bson" m
-#     @load "$(baseDir)/models/$path/hparams.bson" hparams
-#     if hparams.optType == "Adam"
-#         @load "$(baseDir)/models/$path/Opt.bson" opt
-#         opt.w.m = opt.w.m |> dev
-#         opt.w.v = opt.w.v |> dev
-#         opt.a.m = opt.a.m |> dev
-#         opt.a.v = opt.a.v |> dev
-#         opt.b.m = opt.b.m |> dev
-#         opt.b.v = opt.b.v |> dev
-# #         opt = Adam([getfield(opt, field) |> dev for field in fieldnames(Adam)]...)
-#         return rbm, J, m, hparams, opt
-#     else
-#         return rbm, J, m, hparams, 0
-#     end
-# end
