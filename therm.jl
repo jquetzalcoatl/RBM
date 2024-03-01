@@ -247,7 +247,7 @@ end
 #     return U, Σ, F, exp(-F)
 # end
 
-function gibbs_sampling(v,h,J; mcs=5000)
+function gibbs_sampling(v,h,J; mcs=5000, dev0=cpu)
     β=1
     dev = gpu
     nh = size(h,1)
@@ -263,7 +263,7 @@ function gibbs_sampling(v,h,J; mcs=5000)
         h = Array{Float32}(sign.(rand(nh, num) |> dev .< σ.(β .* (J.w' * v .+ J.b)))) |> dev
         v = Array{Float32}(sign.(rand(nv, num) |> dev .< σ.(β .* (J.w * h .+ J.a)))) |> dev 
     end
-    return cpu(v),cpu(h)
+    return dev0(v),dev0(h)
 end
 
 function saveModePlot(Fs, FsRBM, modelname)

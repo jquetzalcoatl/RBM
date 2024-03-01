@@ -4,5 +4,10 @@ files:
   - PCD-500-replica3
   - PCD-500-replica4
   - PCD-500-replica5
+  - CD-500-T1000-5-BW-replica1-L
+  - CD-500-T1000-5-BW-replica2-L
+  - CD-500-T1000-5-BW-replica3-L
+  - CD-500-T1000-5-BW-replica4-L
+  - CD-500-T1000-5-BW-replica5-L
 
 output: Correlations/
