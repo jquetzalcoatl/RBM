@@ -1,46 +1,48 @@
-begin
-    using CUDA, Flux, HDF5
-    using Base.Threads
-    using StatsPlots
-    CUDA.device_reset!()
-    CUDA.device!(0)
-    Threads.nthreads()
-end
-
-include("../utils/train.jl")
-
-Random.seed!(1234);
-d = Dict("bw"=>false)
-rbm, J, m, hparams, opt = train(d, epochs=50, nv=28*28, nh=500, batch_size=500, lr=0.0001, t=100, plotSample=true, 
-    annealing=false, learnType="CD", β=1, β2 = 1, gpu_usage = false, t_samp = 100, num=100, optType="Adam", numbers=[1,5], 
-    savemodel=false, snapshot=1)
-
-rbm, J, m, hparams, rbmZ = initModel(nv=10, nh=5, batch_size=500, lr=1.5, t=10, gpu_usage = false, optType="Adam")
-# opt = initOptW(hparams, J);
-
-
-function gibbs_sampling(v,h,J; mcs=5000, dev0=cpu)
-    β=1
-    dev = gpu
+function gibbs_sampling(v,h,J; mcs=5000, dev=gpu, β=1)
     nh = size(h,1)
     nv = size(v,1)
     num= minimum([size(v,2), 1000])
-    v = gpu(v[:,num])
-    h = gpu(h[:,num])
-    J.w = gpu(J.w)
-    J.b = gpu(J.b)
-    J.a = gpu(J.a)
-    
     for i in 1:mcs
-        h = Array{Float32}(sign.(rand(nh, num) |> dev .< σ.(β .* (J.w' * v .+ J.b)))) |> dev
-        v = Array{Float32}(sign.(rand(nv, num) |> dev .< σ.(β .* (J.w * h .+ J.a)))) |> dev 
+        h = Array{Float32}(sign.(rand(nh, num) |> dev .< σ.( (β .* J.w)' * v .+ J.b))) |> dev
+        v = Array{Float32}(sign.(rand(nv, num) |> dev .< σ.( (β .* J.w) * h .+ J.a))) |> dev 
     end
-    return dev0(v),dev0(h)
+    return v,h
 end
 
-function AIS()
-    lnZa = log(1 + exp)
+function AIS(J, hparams, samples=500, mcs=5000, nbeta=30, dev=gpu)
+    lnZa = sum(log1p.(exp.(J.a))) + sum(log1p.(exp.(J.b)))
+    FreeEnergy_ratios = 0.0
+    Δbeta = 1.0 / nbeta
+
+    v,h = rand([0,1],hparams.nv,samples) |> dev,rand([0,1],hparams.nh,samples) |> dev
+    for β in 0:Δbeta:1.0-Δbeta
+        @info "AIS annealing $β"
+        v,h = gibbs_sampling(v,h,J; mcs=mcs, dev=dev, β=β)
+
+        energy_samples_i = energy_samples(v,h,J,β)
+        energy_samples_i_plus = energy_samples(v,h,J,β + Δbeta)
+        FreeEnergy_ratios += log(mean(exp.(energy_samples_i .- energy_samples_i_plus)))
+    end
+    logZb = FreeEnergy_ratios + lnZa
+    return logZb
 end
 
-gibbs_sampling(rbm.v, rbm.h, J)
+function RAIS(J, hparams, samples=500, mcs=5000, nbeta=30, dev=gpu)
+    lnZb = sum(log1p.(exp.(J.a))) + sum(log1p.(exp.(J.b)))
+    FreeEnergy_ratios = 0.0
+    Δbeta = 1.0 / nbeta
 
+    v,h = rand([0,1],hparams.nv,samples) |> dev,rand([0,1],hparams.nh,samples) |> dev
+    for β in 1:-Δbeta:Δbeta
+        @info "RAIS annealing $β"
+        v,h = gibbs_sampling(v,h,J; mcs=mcs, dev=dev, β=β)
+
+        energy_samples_i = energy_samples(v,h,J,β)
+        energy_samples_i_minus = energy_samples(v,h,J,β - Δbeta)
+        FreeEnergy_ratios += log(mean(exp.(energy_samples_i .- energy_samples_i_minus)))
+    end
+    logZa = - FreeEnergy_ratios + lnZb
+    return logZa
+end
+
+energy_samples(v,h,J,β) = - (v' * J.a + (J.b' * h)' + diag(v' * (β .* J.w) * h))
