@@ -56,27 +56,28 @@ function smallRBM(replicas=50, max_size=5, samples=50, mcs=500, nbeta=20)
 end
 
 
-part_func, part_func_G, part_func_AIS, part_func_RAIS = smallRBM(50, 8, 50, 500, 20)
+part_func, part_func_G, part_func_AIS, part_func_RAIS = smallRBM(50, 10, 50, 500, 20)
 begin
     # F = -kTln(Z)
     # F = E - TS
     # ln(Z) - S = - F/kT - S = - E/kT 
-    plot(part_func[:,1], log.(mean(part_func[:,2:end], dims=2)[:]) .- 2 .* part_func[:,1] .* log(2), 
+    fig = plot(part_func[:,1], log.(mean(part_func[:,2:end], dims=2)[:]) .- 2 .* part_func[:,1] .* log(2), 
         yerr=log.(std(part_func[:,2:end], dims=2)[:]), frame=:box,
         label="Exact", s=:auto, markershapes = :circle, lw=0.5, markerstrokewidth=0.1, ms=15)
 
-    plot!(part_func_G[:,1], log.(mean(part_func_G[:,2:end], dims=2)[:]) .- 2 .* part_func[:,1] .* log(2), 
+    fig = plot!(part_func_G[:,1], log.(mean(part_func_G[:,2:end], dims=2)[:]) .- 2 .* part_func[:,1] .* log(2), 
         yerr=log.(std(part_func_G[:,2:end], dims=2)[:]), color=:red, frame=:box,
-        label="Approximation", s=:auto, markershapes = :auto, lw=0.5, markerstrokewidth=0.1, ms=10)
+        label="Approximation", s=:auto, markershapes = :star5, lw=0.5, markerstrokewidth=0.1, ms=10)
 
-    plot!(part_func_AIS[:,1], part_func_AIS[:,2] .- 2 .* part_func[:,1] .* log(2), 
-        label="AIS", s=:auto, markershapes = :auto, lw=0.5, markerstrokewidth=0.1, ms=10)
+    fig = plot!(part_func_AIS[:,1], part_func_AIS[:,2] .- 2 .* part_func[:,1] .* log(2), 
+        label="AIS", s=:auto, markershapes = :diamond, lw=0.5, markerstrokewidth=0.1, ms=10)
 
-    plot!(part_func_RAIS[:,1], part_func_RAIS[:,2] .- 2 .* part_func[:,1] .* log(2),
-        label="RAIS", s=:auto, markershapes = :auto, lw=0.5, markerstrokewidth=0.1, ms=10)
+    fig = plot!(part_func_RAIS[:,1], part_func_RAIS[:,2] .- 2 .* part_func[:,1] .* log(2),
+        label="RAIS", s=:auto, markershapes = :hexagon, lw=0.5, markerstrokewidth=0.1, ms=5)
 
     # plot!(part_func[:,1], 2 .* part_func[:,1] .* log(2))
-    plot!(xlabel="Number of nodes", ylabel="ln(Z) - Entropy", legend=:topleft)
+    fig = plot!(xlabel="Number of nodes p/ partiton", ylabel="ln(Z) - Entropy", legend=:topleft, size=(700,500))
+    savefig(fig, "/home/javier/Projects/RBM/Results/smallRBMs.png")
 end
 
 
@@ -125,18 +126,19 @@ begin
         # yerr=log.(std(part_func[:,2:end], dims=2)[:]), frame=:box,
         # label="Exact", s=:auto, markershapes = :circle, lw=0.5, markerstrokewidth=0.1, ms=10)
 
-    plot(part_func_G[:,1], mean(part_func_G[:,2:end], dims=2)[:] .- 2 .* part_func_G[:,1] .* log(2), 
+    fig = plot(part_func_G[:,1], mean(part_func_G[:,2:end], dims=2)[:] .- 2 .* part_func_G[:,1] .* log(2), 
         yerr=log.(std(part_func_G[:,2:end], dims=2)[:]), color=:red, frame=:box,
-        label="Approximation", s=:auto, markershapes = :auto, lw=0.5, markerstrokewidth=0.1, ms=10)
+        label="Approximation", s=:auto, markershapes = :star5, lw=0.5, markerstrokewidth=0.1, ms=10)
 
-    plot!(part_func_AIS[:,1], part_func_AIS[:,2] .- 2 .* part_func_G[:,1] .* log(2), 
-        label="AIS", s=:auto, markershapes = :auto, lw=0.5, markerstrokewidth=0.1, ms=10)
+    fig = plot!(part_func_AIS[:,1], part_func_AIS[:,2] .- 2 .* part_func_G[:,1] .* log(2), 
+        label="AIS", s=:auto, markershapes = :diamond, lw=0.5, markerstrokewidth=0.1, ms=10)
 
-    plot!(part_func_RAIS[:,1], part_func_RAIS[:,2] .- 2 .* part_func_G[:,1] .* log(2),
-        label="RAIS", s=:auto, markershapes = :auto, lw=0.5, markerstrokewidth=0.1, ms=10)
+    fig = plot!(part_func_RAIS[:,1], part_func_RAIS[:,2] .- 2 .* part_func_G[:,1] .* log(2),
+        label="RAIS", s=:auto, markershapes = :hexagon, lw=0.5, markerstrokewidth=0.1, ms=10)
 
     # plot!(part_func[:,1], 2 .* part_func[:,1] .* log(2))
-    plot!(xlabel="Number of nodes", ylabel="ln(Z) - Entropy", legend=:topleft)
+    fig = plot!(xlabel="Number of node p/ partition", ylabel="ln(Z) - Entropy", legend=:topleft)
+    savefig(fig, "/home/javier/Projects/RBM/Results/not_so_smallRBMs.png")
 end
 
 ###################################
@@ -152,13 +154,13 @@ end
 
 
 modelName = config.model_analysis["files"][12]
-rbm, J, m, hparams, opt = loadModel(modelName, gpu);
+rbm, J, m, hparams, opt = loadModel(modelName, gpu, idx=1);
 
-rbm, J, m, hparams, rbmZ = initModel(nv=500, nh=500, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+rbm, J, m, hparams, rbmZ = initModel(nv=10, nh=10, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 
-log_pf_Gauss_beta(J, hparams)
-AIS(J, hparams, 500, 500, 20)
-RAIS(J, hparams, 500, 500, 20)
+@time log_pf_Gauss_beta(J, hparams)
+@time AIS(J, hparams, 500, 500, 20)
+@time RAIS(J, hparams, 500, 500, 20)
 
 
 
@@ -172,10 +174,6 @@ B = y_m ./ (y_σ .^ 2) .+ F.S .* ( x_σ .^ 2 .* F.U' * J.a .+ x_m ) .+ F.Vt *J.b
 A = 1 ./ (2 .* y_σ .^ 2) - x_σ .^ 2 .* F.S .^ 2 ./ 2
 C = .- y_m .^ 2 ./ (2 .* y_σ .^ 2) .+ x_m .* F.U' * J.a .+ x_σ .^ 2 .* (F.U' * J.a) .^ 2  ./ 2
 
-ff1 = @. (B^2/(4*A) + C) - 0.5 *log(2*A)
-ff2 = log.(f(A,B,x_σ,x_m,1))
-sum(ff1 .+ ff2)
-
 
 A = cpu(A)
 B = cpu(B)
@@ -183,10 +181,33 @@ x_σ = cpu(x_σ)
 x_m = cpu(x_m)
 @. √(1/abs(A)) * ( (A > 0) + (A <= 0) * 0.5 * (erfi(√abs(A) * (x_σ + B/(2*A) - x_m) ) + erfi(√abs(A) * (x_σ - B/(2*A) + x_m) )) )
 
+sqrt.(complex(A))
+
+(erfi(√abs(A) * (x_σ + B/(2*A) - x_m) ) + erfi(√abs(A) * (x_σ - B/(2*A) + x_m) ))
+
+√complex(-1)
 @. (A <= 0) * 0.5 * (erfi(√abs(A) * (x_σ + B/(2*A) - x_m) ) + erfi(√abs(A) * (x_σ - B/(2*A) + x_m) ))
 
 @. √abs(A) * (x_σ + B/(2*A) - x_m)
 @. √abs(A) * (x_σ - B/(2*A) + x_m) 
 A
 
-erfi(-100)
+erfi(4)
+-im*erf(im*10)
+1+2i
+
+erf(100)
+
+
+function I(A,B,μ,σ)
+    A = cpu(A)
+    B = cpu(B)
+    σ = cpu(σ)
+    μ = cpu(μ)
+    sqrtAcomplex = @. √complex(A)
+    res = @. √π/2 * 1/sqrtAcomplex * ( erf(sqrtAcomplex * (μ - σ - B/(2*A))) - erf(sqrtAcomplex * (- μ + σ - B/(2*A))) )
+    return gpu(res)
+end
+
+plot(real(I(A,B, x_m, x_σ ./ 2)))
+
