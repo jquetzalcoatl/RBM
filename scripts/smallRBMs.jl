@@ -8,8 +8,10 @@ begin
 end
 
 include("../utils/train.jl")
+
 include("../scripts/exact_partition.jl")
 include("../scripts/gaussian_partition.jl")
+include("../scripts/gaussian_orth_partition.jl")
 include("../scripts/RAIS.jl")
 
 Random.seed!(1234);
@@ -19,7 +21,6 @@ Random.seed!(1234);
     # savemodel=false, snapshot=1)
 
 rbm, J, m, hparams, rbmZ = initModel(nv=5, nh=5, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
-# opt = initOptW(hparams, J);
 
 function smallRBM(replicas=50, max_size=5, samples=50, mcs=500, nbeta=20)
     # replicas = 50
@@ -46,12 +47,6 @@ function smallRBM(replicas=50, max_size=5, samples=50, mcs=500, nbeta=20)
         part_func_AIS[i,:] = hcat(s,AIS(J, hparams, samples, mcs, nbeta)) #vcat(part_func_AIS, hcat(s,AIS(J, hparams, samples, mcs, nbeta)))
         part_func_RAIS[i,:] = hcat(s,RAIS(J, hparams, samples, mcs, nbeta)) #vcat(part_func_RAIS, hcat(s,RAIS(J, hparams, samples, mcs, nbeta)))
     end
-    # part_func = part_func[2:end,:]
-    # part_func_G = part_func_G[2:end,:]
-
-    # part_func_AIS = part_func_AIS[2:end,:]
-    # part_func_RAIS = part_func_RAIS[2:end,:]
-
     return part_func, part_func_G, part_func_AIS, part_func_RAIS
 end
 
@@ -80,10 +75,7 @@ begin
     savefig(fig, "/home/javier/Projects/RBM/Results/smallRBMs.png")
 end
 
-
 function not_so_smallRBM(replicas=50, min_size=20, max_size=30, samples=50, mcs=500, nbeta=20)
-   # replicas = 50
-#    part_func = zeros(max_size-2+1,replicas+1)
    part_func_G = zeros(max_size-min_size+1,replicas+1)
    part_func_AIS = zeros(max_size-min_size+1,2)
    part_func_RAIS = zeros(max_size-min_size+1,2)
@@ -95,23 +87,13 @@ function not_so_smallRBM(replicas=50, min_size=20, max_size=30, samples=50, mcs=
        for r in 1:replicas
            rbm, J, m, hparams, rbmZ = initModel(nv=s, nh=s, batch_size=1, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 
-        #    push!(zs,partition_function(J))
-
            push!(zs_G, log_pf_Gauss_beta(J, hparams))
        end
-
-    #    part_func[i,:] = hcat(s,zs') #vcat(part_func, hcat(s,zs'))
        part_func_G[i,:] = hcat(s,zs_G') #vcat(part_func_G, hcat(s,zs_G'))
 
        part_func_AIS[i,:] = hcat(s,AIS(J, hparams, samples, mcs, nbeta)) #vcat(part_func_AIS, hcat(s,AIS(J, hparams, samples, mcs, nbeta)))
        part_func_RAIS[i,:] = hcat(s,RAIS(J, hparams, samples, mcs, nbeta)) #vcat(part_func_RAIS, hcat(s,RAIS(J, hparams, samples, mcs, nbeta)))
    end
-   # part_func = part_func[2:end,:]
-   # part_func_G = part_func_G[2:end,:]
-
-   # part_func_AIS = part_func_AIS[2:end,:]
-   # part_func_RAIS = part_func_RAIS[2:end,:]
-
    return part_func_G, part_func_AIS, part_func_RAIS
 end
 
@@ -153,61 +135,116 @@ begin
 end
 
 
-modelName = config.model_analysis["files"][12]
-rbm, J, m, hparams, opt = loadModel(modelName, gpu, idx=1);
+modelName = config.model_analysis["files"][14]
+rbm, J, m, hparams, opt = loadModel(modelName, gpu, idx=100);
 
-rbm, J, m, hparams, rbmZ = initModel(nv=10, nh=10, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+rbm, J, m, hparams, rbmZ = initModel(nv=784, nh=500, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 
-@time log_pf_Gauss_beta(J, hparams)
+@time log_pf_Gauss(J, hparams)
 @time AIS(J, hparams, 500, 500, 20)
 @time RAIS(J, hparams, 500, 500, 20)
+@time log_pf_Gauss_Approx_beta(J, hparams, 0.5)
+@time log_pf_Gauss_orthogonal(J, hparams, 0.5)
+@time log_pf_Gauss_orthogonal(J, hparams)
+log_configurational_entropy(hparams)
 
+F = LinearAlgebra.svd(J.w, full=true)
+plot(F.S, yscale=:linear, color=:red, frame=:box,
+    label="Singular Values", s=:auto, markershapes = :star5, lw=0.5, markerstrokewidth=0.1, ms=10)
+hline!([4])
+minimum(F.S)
+
+
+J.w = F.U * gpu(diagm(F.S .+ 20)) * F.Vt
+J.w = F.U * gpu(diagm(F.S ./ maximum(F.S) )) * F.Vt
+F.S
+J.w = F.U * gpu(diagm((rand(500) .* 5) .+ 15)) * F.Vt
+J.w = F.U * gpu(diagm(ones(size(F.S)) .* 1)) * F.Vt
 
 
 F = LinearAlgebra.svd(J.w, full=true)
-
-x_m, x_σ = sum(F.U', dims=2)/2, sum(F.U' .^ 2, dims=2)/2
-
-y_m, y_σ = sum(F.Vt, dims=2)/2, sum(F.Vt .^ 2, dims=2)/2
-
-B = y_m ./ (y_σ .^ 2) .+ F.S .* ( x_σ .^ 2 .* F.U' * J.a .+ x_m ) .+ F.Vt *J.b
-A = 1 ./ (2 .* y_σ .^ 2) - x_σ .^ 2 .* F.S .^ 2 ./ 2
-C = .- y_m .^ 2 ./ (2 .* y_σ .^ 2) .+ x_m .* F.U' * J.a .+ x_σ .^ 2 .* (F.U' * J.a) .^ 2  ./ 2
-
-
-A = cpu(A)
-B = cpu(B)
-x_σ = cpu(x_σ)
-x_m = cpu(x_m)
-@. √(1/abs(A)) * ( (A > 0) + (A <= 0) * 0.5 * (erfi(√abs(A) * (x_σ + B/(2*A) - x_m) ) + erfi(√abs(A) * (x_σ - B/(2*A) + x_m) )) )
-
-sqrt.(complex(A))
-
-(erfi(√abs(A) * (x_σ + B/(2*A) - x_m) ) + erfi(√abs(A) * (x_σ - B/(2*A) + x_m) ))
-
-√complex(-1)
-@. (A <= 0) * 0.5 * (erfi(√abs(A) * (x_σ + B/(2*A) - x_m) ) + erfi(√abs(A) * (x_σ - B/(2*A) + x_m) ))
-
-@. √abs(A) * (x_σ + B/(2*A) - x_m)
-@. √abs(A) * (x_σ - B/(2*A) + x_m) 
-A
-
-erfi(4)
--im*erf(im*10)
-1+2i
-
-erf(100)
+#increase temperature
+β = 4/√(maximum(F.S)^2)*0.6 
+#lower temperature
+β = 4/minimum(F.S)*1.4 
+J.w = @. J.w*β
+J.a = @. J.a*β
+J.b = @. J.b*β
 
 
-function I(A,B,μ,σ)
-    A = cpu(A)
-    B = cpu(B)
-    σ = cpu(σ)
-    μ = cpu(μ)
-    sqrtAcomplex = @. √complex(A)
-    res = @. √π/2 * 1/sqrtAcomplex * ( erf(sqrtAcomplex * (μ - σ - B/(2*A))) - erf(sqrtAcomplex * (- μ + σ - B/(2*A))) )
-    return gpu(res)
+begin
+    rais, ais, orth_g = [], [], []
+    for i in 2:10
+        @info i
+        F = LinearAlgebra.svd(J.w, full=true)
+        J.w = F.U * gpu(diagm(ones(size(F.S)) .* i)) * F.Vt
+        push!(ais, AIS(J, hparams, 500, 500, 20))
+        push!(rais, RAIS(J, hparams, 500, 500, 20))
+    end        
 end
 
-plot(real(I(A,B, x_m, x_σ ./ 2)))
+plot(2:10, rais)
+plot!(2:10, ais/1000)
+rais
 
+F = LinearAlgebra.svd(J.w, full=true)
+plot()
+for i in 2:10
+    J.w = F.U * gpu(diagm(ones(size(F.S)) .* i)) * F.Vt
+    plot!([log_pf_Gauss_orthogonal(J, hparams, i) for i in 0.1:1:20], label=i, frame=:box,
+    s=:auto, markershapes = :auto, lw=0.5, markerstrokewidth=0.1, ms=10)
+    hline!([rais[i-1]], lw=2 )
+end
+plot!(size=(900,600))
+
+plot([log_pf_Gauss_orthogonal(J, hparams, i) for i in 0.1:1:20], label=2, lw=2, ls=:dash)
+
+
+#kurtosis
+plot!(sum(F.U', dims=2) .^ 2, yscale=:log10)
+sum(F.U', dims=2) .^ 4
+
+begin
+    smp = 1000
+    nv = 1000
+    krt = CuArray(zeros(nv, smp))
+    sv = CuArray(zeros(nv, smp))
+    for i in 1:smp
+        rbm, J, m, hparams, rbmZ = initModel(nv=nv, nh=nv, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+        F = LinearAlgebra.svd(J.w, full=true)
+        krt[:,i] = sum(F.U', dims=2) .^ 2
+        sv[:,i] = F.S
+    end
+end
+
+plot(1:nv, 1 .+ 4 .* mean(krt,dims=2), ribbon=std(krt,dims=2), lw=2)
+plot(sv[:], st=:histogram)
+
+
+using StatsBase
+begin
+    smp = 10
+    nv = 8
+    krt_2 = Array(zeros(nv, smp))
+    sd = Array(zeros(nv, smp))
+    m_num = Array(zeros(nv, smp))
+    m_an = Array(zeros(nv, smp))
+    for i in 1:smp
+        rbm, J, m, hparams, rbmZ = initModel(nv=8, nh=8, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+        vs = generate_binary_states(size(J.a,1))
+        F = LinearAlgebra.svd(J.w, full=true)
+        xs = cpu(F.U') * hcat(vs...)
+        krt_2[:,i] = [kurtosis(xs[i,:]) for i in 1:8]
+        sd[:,i] = [std(xs[i,:]) for i in 1:8]
+        m_num[:,i] = [mean(xs[i,:]) for i in 1:8]
+        m_an[:,i] = 0.5 * sum(F.U', dims=2)
+    end
+end
+mean(krt_2,dims=2)
+plot(1:nv, mean(krt_2, dims=2), ribbon=std(krt_2,dims=2), lw=2)
+
+plot(1:nv, mean(sd, dims=2), ribbon=std(sd,dims=2), lw=2)
+
+
+plot(1:nv, mean(m_num, dims=2), ribbon=std(m_num,dims=2), lw=2)
+plot!(1:nv, mean(m_an, dims=2), ribbon=std(m_an,dims=2), lw=2)

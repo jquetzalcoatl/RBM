@@ -37,7 +37,8 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "
         pWMean = plot!(m.wTrMean, yerr=m.wTrVar, label="w mean", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
-        hmSamp = heatmap(avSamp, rotate=90)
+        mat_rot = reverse(transpose(avSamp), dims=1)
+        hmSamp = heatmap(mat_rot)
 
         pLS = plotLandscapes(rbm, J, lnum ; τ=t, TS, dev, hparams)
         
@@ -49,7 +50,8 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "
         # f = plot(f, pLS, layout=(2,1), size=(900,1500), margin = 8*Plots.mm)
         if plotSample
             display(f)
-            display(pLS)
+            # display(pLS)
+            # display(plot(f, pLS, layout=(2,1), size=(900,1800), margin = 8*Plots.mm))
         else
             isdir(dict["bdir"] * "/models/$(dict["msg"])/Plots") || mkpath(dict["bdir"] * "/models/$(dict["msg"])/Plots")
             savefig(f, dict["bdir"] * "/models/$(dict["msg"])/Plots/$epoch.png")
