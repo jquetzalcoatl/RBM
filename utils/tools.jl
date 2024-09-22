@@ -19,14 +19,14 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "
     samp = reshape(rbm.v, 28,28,:) |> cpu;
 
     if mode == "train"
-        pF = plot(.- m.T .* log.(m.Zdata), label="F_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        pF = plot!(.- m.T .* log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="F_r")
+        # pF = plot(.- m.T .* log.(m.Zdata), label="F_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        # pF = plot!(.- m.T .* log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="F_r")
 
-        pEn = plot(m.enData, label="E_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        pEn = plot!(m.enRBM, markersize=7, markershapes = :circle, lw=1.5, label="E_r")
+        # pEn = plot(m.enData, label="E_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        # pEn = plot!(m.enRBM, markersize=7, markershapes = :circle, lw=1.5, label="E_r")
 
-        pEnt = plot(m.enData ./  m.T .+ log.(m.Zdata), label="S_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
-        pEnt = plot!(m.enRBM ./ m.T .+ log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="S_r")
+        # pEnt = plot(m.enData ./  m.T .+ log.(m.Zdata), label="S_d T=$(round(1/(β2+0.000001), digits=2))", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
+        # pEnt = plot!(m.enRBM ./ m.T .+ log.(m.Zrbm), markersize=7, markershapes = :circle, lw=1.5, label="S_r")
 
         pLoss = plot(m.ΔwList, yerr=m.ΔwSDList, label="Δw", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
         pLoss = plot!(m.ΔaList, yerr=m.ΔaSDList, label="Δa", markersize=7, markershapes = :circle, lw=1.5, markerstrokewidth=0.5)
@@ -39,14 +39,15 @@ function genSample(rbm, J, hparams, m; num = 25, t = 10, β = 1, β2=1, mode = "
         avSamp = cat([cat([samp[:,:,i+j*lnum] for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
         mat_rot = reverse(transpose(avSamp), dims=1)
         hmSamp = heatmap(mat_rot)
-
         pLS = plotLandscapes(rbm, J, lnum ; τ=t, TS, dev, hparams)
         
-        p1 = plot(pEn, pLoss, layout=(1,2))
-        p2 = plot(pF, pEnt, layout=(1,2))
-        p3 = plot(pEigen, pWMean, layout=(1,2))
-        p = plot(p1, p2, p3, layout=(3,1))
-        f = plot(p,hmSamp, layout=(2,1), size=(900,1200), margin = 8*Plots.mm)
+        # p1 = plot(pEn, pLoss, layout=(1,2))
+        # p2 = plot(pF, pEnt, layout=(1,2))
+        # p3 = plot(pEigen, pWMean, layout=(1,2))
+        # p = plot(p1, p2, p3, layout=(3,1))
+        # f = plot(p,hmSamp, layout=(2,1), size=(900,1200), margin = 8*Plots.mm)
+        p3 = plot(pEigen, pWMean, pLoss, layout=(1,3))
+        f = plot(p3,hmSamp, layout=(2,1), size=(900,1200), margin = 8*Plots.mm)
         # f = plot(f, pLS, layout=(2,1), size=(900,1500), margin = 8*Plots.mm)
         if plotSample
             display(f)

@@ -47,6 +47,43 @@ function loadData(; hparams, dsName="MNIST01", numbers = [0,1], normalize=false,
             # x = [train_data[:,i] for i in Iterators.partition(1:size(train_data,2), hparams.batch_size)][1:end-1]
             x = reshape(train_x, 28*28, :), train_y
         end
+    elseif dsName=="FMNIST"  
+        if testset == false
+            train_x = MLDatasets.FashionMNIST(split=:train)[:].features
+            train_y = MLDatasets.FashionMNIST(split=:train)[:].targets
+    
+            train_x_samp = Array{Float32}(train_x[:, :, train_y .== numbers[1]] .≥ 0.5)
+            if size(numbers,1)>1
+                for idx in numbers[2:end]
+                    train_x_tmp = Array{Float32}(train_x[:, :, train_y .== idx] .≥ 0.5)
+                    train_x_samp = cat(train_x_samp, train_x_tmp, dims=3)
+                end
+            end
+            train_x = train_x_samp
+            @info size(train_x,3)
+            idx = randperm(size(train_x,3))
+            train_data = reshape(train_x, 28*28, :)[:,idx]
+            train_data = normalize ? train_data ./ sum(train_data, dims=1) : train_data
+            x = [train_data[:,i] for i in Iterators.partition(1:size(train_data,2), hparams.batch_size)][1:end-1]
+        else
+            train_x = MLDatasets.FashionMNIST(split=:test)[:].features
+            train_y = MLDatasets.FashionMNIST(split=:test)[:].targets
+    
+            train_x_samp = Array{Float32}(train_x .≥ 0.5)
+            # if size(numbers,1)>1
+            #     for idx in numbers[2:end]
+            #         train_x_tmp = Array{Float32}(train_x[:, :, train_y .== idx] .≥ 0.5)
+            #         train_x_samp = cat(train_x_samp, train_x_tmp, dims=3)
+            #     end
+            # end
+            train_x = train_x_samp
+            @info size(train_x,3)
+            # idx = randperm(size(train_x,3))
+            # train_data = reshape(train_x, 28*28, :)[:,idx]
+            # train_data = normalize ? train_data ./ sum(train_data, dims=1) : train_data
+            # x = [train_data[:,i] for i in Iterators.partition(1:size(train_data,2), hparams.batch_size)][1:end-1]
+            x = reshape(train_x, 28*28, :), train_y
+        end
     end
     x
 end

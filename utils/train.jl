@@ -64,8 +64,8 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
             
             updateJ!(J, Δw, Δa, Δb, opt; hparams)
 
-            append!(enEpoch, avgEn(rbm,J, 1) |> cpu)
-            append!(ZEpoch, sum(exp.(- H(rbm, J))) |> cpu)
+            # append!(enEpoch, avgEn(rbm,J, 1) |> cpu)
+            # append!(ZEpoch, sum(exp.(- H(rbm, J))) |> cpu)
             append!(ΔwEpoch, mean(Δw) |> cpu)
             append!(ΔaEpoch, mean(Δa) |> cpu)
             append!(ΔbEpoch, mean(Δb) |> cpu)
@@ -76,13 +76,13 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         end
 
         a,b = EnRBM(J, hparams, 1; dev)
-        append!(m.enData, mean(enEpoch))
-        append!(m.enDataSD, std(enEpoch))
-        append!(m.enRBM, a)
+        # append!(m.enData, mean(enEpoch))
+        # append!(m.enDataSD, std(enEpoch))
+        # append!(m.enRBM, a)
         append!(m.enSP, saddlePointEnergy(J, hparams; dev))
-        append!(m.Zdata, mean(ZEpoch))
-        append!(m.Zrbm, b)
-        append!(m.T, 1)
+        # append!(m.Zdata, mean(ZEpoch))
+        # append!(m.Zrbm, b)
+        append!(m.T, 1/β2)
         
         append!(m.ΔwList, mean(ΔwEpoch))
         append!(m.ΔwSDList, std(ΔwEpoch))
@@ -95,7 +95,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
         append!(m.wTrMean, MatrixMean(J.w'))
         append!(m.wTrVar, MatrixVar(J.w'))
 
-        @info string(now())[1:end-4], epoch, m.enData[end], m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β2
+        @info string(now())[1:end-4], epoch, m.ΔwList[end], m.ΔaList[end], m.ΔbList[end], β2
         logging ? flush(io) : nothing
         if epoch % snapshot == 0 
             savemodel ? saveModel(rbm, J, m, hparams; opt, path = dict["msg"], baseDir = dict["bdir"], epoch) : nothing

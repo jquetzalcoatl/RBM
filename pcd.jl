@@ -68,6 +68,10 @@ function parseCommandLine()
         help = "Specify max memory"
         arg_type = String
         default = "3GiB"
+      "--dataset"
+        help = "Specify dataset"
+        arg_type = String
+        default = "MNIST01"
     end
   
     return parse_args(s) # the result is a Dict{String,Any
@@ -109,7 +113,7 @@ function main()
     # Random.seed!(1234);
     hparams = HyperParams(nv=nv, nh=nh, batch_size=batchsize, gpu_usage=gpu_usage)
     
-    x = loadData(; hparams, dsName="MNIST01", numbers, normalize=false, testset=false)
+    x = loadData(; hparams, dsName=dict["dataset"], numbers, normalize=false, testset=false)
     train_x = CuArray(reshape(hcat(x...),28,28,:));
     
     rbm = CudaRBMs.gpu(BinaryRBM(Float32, (28,28), nh))
@@ -139,5 +143,6 @@ function main()
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main()
+  # julia pcd.jl --dataset FMNIST -m PCD-FMNIST-500-replica1-L --dev 2 --maxmem 3GiB -e 100 &
+  main()
 end

@@ -49,7 +49,7 @@ function loss(rbm, J, x_data, x_Gibbs; hparams, β=1, β2=1, dev, lProtocol="Rdm
     
     rbm.v = x_data |> dev
     v_data = rbm.v
-    h_data = exp.(β2 * (J.b .+ J.w' * rbm.v)) ./ (1 .+ exp.(β2 * (J.b .+ J.w' * rbm.v)))
+    h_data = exp.(J.b .+ J.w' * rbm.v) ./ (1 .+ exp.(J.b .+ J.w' * rbm.v))
     vh_data = (v_data * h_data')/hparams.batch_size
     v_data = reshape(mean(v_data,dims=2),:)
     h_data = reshape(mean(h_data,dims=2),:)
