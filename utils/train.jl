@@ -20,7 +20,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     end
     
     rbm, J, m, hparams, rbmZ = initModel(; nv, nh, batch_size, lr, γ, t, gpu_usage, optType)
-    x, y = loadData(; hparams, dsName="MNIST01", numbers=collect(0:9), testset=true);
+    x, y = loadData(; hparams, dsName=dict["dataset"], numbers=collect(0:9), testset=true);
     TS = Test(x,y)
 
     if optType=="Adam"
@@ -30,7 +30,7 @@ function train(dict ; epochs=50, nv=28*28, nh=100, batch_size=100, lr=0.001, t=1
     end
     dev = selectDev(hparams)
     
-    x = loadData(; hparams, dsName="MNIST01", numbers)
+    x = loadData(; hparams, dsName=dict["dataset"], numbers)
     
     if learnType == "Rdm"
         x_Gibbs = [rand(size(x[1])...) for i in 1:size(x,1)]

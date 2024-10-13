@@ -84,6 +84,10 @@ function parseCommandLine()
         help = "Final Temp if anneal = true"
         arg_type = Float64
         default = 10.0
+      "--dataset"
+        help = "Specify dataset"
+        arg_type = String
+        default = "MNIST01"
     end
   
     return parse_args(s) # the result is a Dict{String,Any
@@ -121,7 +125,7 @@ function main()
     end
 
     saveDict(dict; path, baseDir = dict["bdir"])
-    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=1, numbers, logging=true, io)
+    rbm, J, m, hparams, opt = train( dict ; epochs, nv, nh, batch_size, lr, t, plotSample, annealing, β2, learnType, gpu_usage, t_samp=t, num=100, optType=dict["opt"], snapshot=1, numbers, logging=true, io)
     # saveModel(rbm, J, m, hparams; opt, path, baseDir = dict["bdir"])
     saveDict(dict; path, baseDir = dict["bdir"])
     close(io)
@@ -129,5 +133,6 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     # julia main.jl --bw true -a true -D CD -T 0.001 -m CD-500-T1000-BW-replica1-L --dev 1 --maxmem 3GiB -e 1000 &
+    # julia main.jl --bw true -a true -D CD -T 0.001 --dataset FMNIST -m CD-FMNIST-500-T1000-BW-replica1-L --dev 1 --maxmem 3GiB -e 1000 &
     main()
 end

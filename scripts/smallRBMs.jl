@@ -133,9 +133,9 @@ begin
     # β = 1.0
     config, _ = load_yaml_iter();
 end
+config.model_analysis["files"][1]
 
-
-modelName = config.model_analysis["files"][1]
+modelName = "PCD-FMNIST-500-replica1-L" #config.model_analysis["files"][1]
 rbm, J, m, hparams, opt = loadModel(modelName, gpu, idx=100);
 
 
@@ -467,9 +467,11 @@ plot(c_dict[2], legend=false, lw=2, xlabel="Time (x10)", ylabel="Correlation", t
 # end
 # c_dict[1]
 # plot(c_dict[1])
-v = rbm.v
+
+v = rand([0,1], hparams.nv, num) |> gpu
+# rbm.v
 num=500
-for i in 1:num_iterations
+for i in 1:10*num_iterations
     v, h = gibbs_sample(v, J, 1.0, gpu)
 end
 heatmap(reshape(cpu(v[:,1]),28,28))
