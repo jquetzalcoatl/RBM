@@ -338,7 +338,7 @@ plot(F.S, [char_time(c_dict_vh[1][:,idx]) for idx in 1:hs_n], xscale=:log, marke
 # plot!([char_time(c_dict_vh[2][1:end-1,idx]) for idx in 1:100])
 
 
-
+128*3*3*3
 using CurveFit
 a,b = linear_fit(x, y[x])
 y

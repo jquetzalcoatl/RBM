@@ -6,7 +6,7 @@ begin
     using QuadGK
     using FFTW
     CUDA.device_reset!()
-    CUDA.device!(1)
+    CUDA.device!(2)
     Threads.nthreads()
 end
 
@@ -53,7 +53,7 @@ function gibbs_sample(v, J, dev, num, β=1)
     v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(β .* ( J.w * h .+ J.a)))) |> dev
     return v, h
 end
-rbm.v
+
 function obtain_rel_error(rbm,J,dev; num=500, steps=1000, mode="avg")
     if mode == "exact"
         if size(rbm.v,1) + size(rbm.h,1) > 40
@@ -150,6 +150,8 @@ begin
     plot(p1,p2,p3, size=(800,800), lw=0.1, title="Untrained RBM", xlabel="ϵ", ylabel="Histogram")
 end
 
+H(rbm,J)
+
 sum(H(rbm,J) .* exp.(-H(rbm,J)) ./ partition_function(J))
 plot(H(rbm,J), st=:histogram, normalize=true, label="Exact", lw=0)
 plot!(H(rbm,J), st=:histogram, normalize=true, label="BGS", bins=50, lw=0, alpha=0.5)
@@ -176,3 +178,29 @@ rbmZ.v = uniV[:,sortperm(deg)][1:4,:] |> gpu
 rbmZ.h = uniV[:,sortperm(deg)][5:8,:] |> gpu
 
 bar!(twinx(), cpu(H(rbmZ,J)), label="E", ylabel="Energy", lw=0)
+
+####################
+@time rel_a, rel_b, rel_J = obtain_rel_error(rbm,J,gpu, steps=10000, num=10000, mode="exact")
+mean_e = sum(H(rbm,J) .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J)))
+std_e = sum((H(rbm,J) .- mean_e) .^2 .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J)))
+plot(1 ./ e_list[2:end,1], e_list[2:end,2], lw=2, ribbon=e_list[2:end,3], label="BGS")
+hline!([mean_e], lw=2, label="exact", xlabel="Temperature", ylabel="<E>")
+
+e_list = zeros(5,3)
+for (i,β) in enumerate([0.005, 0.01, 0.1, 0.5, 1.0])
+    num=10000
+    rbm.v = rand([0,1], hparams.nv, num) |> gpu
+    for i in 1:10000
+        rbm.v, rbm.h = gibbs_sample(rbm.v, J, gpu, num, β)
+    end
+    mean_e = sum(H(rbm,J) .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J)))
+    std_e = sum((H(rbm,J) .- mean_e) .^2 .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J)))
+    e_list[i,:] = [β mean_e std_e]
+end
+e_list
+
+sum(H(rbm,J) .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J))) + log(sum(exp.(-H(rbm,J))))
+sum(H(rbm,J) .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J)))
+
+sum(H(rbm,J) .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J))) + log(sum(exp.(-H(rbm,J))))
+sum(H(rbm,J) .* exp.(-H(rbm,J))) / sum(exp.(-H(rbm,J)))
