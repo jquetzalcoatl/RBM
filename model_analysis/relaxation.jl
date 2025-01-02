@@ -17,39 +17,60 @@ include("../scripts/gaussian_partition.jl")
 include("../scripts/gaussian_orth_partition.jl")
 include("../scripts/RAIS.jl")
 
-
+include("./PhaseAnalysis.jl")
 
 # Random.seed!(1234);
 # rbm, J, m, hparams, rbmZ = initModel(nv=5, nh=5, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 
 begin
-    # include("../therm.jl")
     include("../configs/yaml_loader.jl")
     PATH = "/home/javier/Projects/RBM/Results/"
-    # dev = gpu
-    # β = 1.0
     config, _ = load_yaml_iter();
 end
 config.model_analysis["files"]
 
 modelName = "PCD-FMNIST-500-replica1-L" #config.model_analysis["files"][1]
 # modelName = "CD-FMNIST-500-T1000-BW-replica1-L"
-# modelName = config.model_analysis["files"][6]
-modelName = "Random-RBM"
-rbm, J, m, hparams, opt = loadModel(modelName, gpu, idx=100);
+modelName = config.model_analysis["files"][1]
+modelName = "Random-RBM_small"
+rbm, J, m, hparams, opt = loadModel(modelName, gpu, idx=1);
 PATH="/home/javier/Projects/RBM/NewResults/$modelName/"
 isdir(PATH) ? (@info "Directory exists") : mkdir(PATH)
 
 F = LinearAlgebra.svd(J.w, full=true)
-plot(F.S)
+plot(cpu(F.S))
 
-# rbm, J, m, hparams, rbmZ = initModel(nv=1784, nh=1784, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+rbm, J, m, hparams, rbmZ = initModel(nv=4500, nh=4500, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 rbm, J, m, hparams, rbmZ = initModel(nv=784, nh=500, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
-rbm, J, m, hparams, rbmZ = initModel(nv=10, nh=5, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
-# J.w = J.w * 100
-J.w = F.U * gpu(vcat(diagm(F.S * 10), zeros(hparams.nv-hparams.nh,hparams.nh))) * F.Vt
+rbm, J, m, hparams, rbmZ = initModel(nv=10, nh=6, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+
+# J.w = F.U * gpu(vcat(diagm(cpu(F.S) * 10), zeros(hparams.nv-hparams.nh,hparams.nh))) * F.Vt
 
 plot(Array(reshape(J.w,:)), st=:histogram)
+J.w = J.w .* 5 .+ 0.01
+
+y0 = 0.5
+x0= 1.5
+j = 1/((hparams.nv + hparams.nh)*y0)
+j0 = x0*j
+J.w = randn(size(J.w)) .* j .+ j0
+J.b = zeros(size(J.b))
+J.a = zeros(size(J.a))
+
+mag = magnetization(J, hparams)
+mag = magnetization_Gibbs(J, hparams, 1000,500)
+
+begin
+    x0 = abs(mean(J.w))/std(J.w)
+    y0 = 1/((hparams.nv + hparams.nh)*std(J.w))
+    # y0 = 1/(std(J.w))
+    # plot(xlim=[0,2], ylim=[0,3], label=false)
+    plot(label=false)
+    hline!([1],lw=2, label=false)
+    plot!([1,2], x->x, lw=2, label=false)
+    vline!([1], lw=2, label=false)
+    plot!([x0], [y0], label="$(round(x0,digits=2)), $(round(y0,digits=2))", marker=:circle, markerstrokewidth=0.1)
+end
 
 ###########Corr
 function gibbs_sample(v, J, dev)
@@ -62,8 +83,8 @@ function self_correlation(arr, t, τ)
     μ = mean(arr, dims=1)
     C = mean(arr[:,:,t+τ] .* arr[:,:,t], dims=1) .- μ[:,:,t+τ] .* μ[:,:,t]
     # mean(C, dims=1) / var(arr[:,:,t], dims=1)
-    C ./ (var(arr[:,:,t], dims=1) .+ eps(eltype(arr)))
-    # C ./ var(arr[:,:,t], dims=1)
+    C ./ (var(arr[:,:,t], dims=1, corrected=false) .+ eps(eltype(arr)))
+    # C ./ var(arr[:,:,t], dims=1, corrected=false)
 end
 
 function c_i_tau(arr,τ, steps=size(arr,3))
@@ -138,12 +159,32 @@ num=100
 burnout=5000
 step=1
 cor_step = 1
-@time vs, hs, xs, ys, us, ws = generate_samples(num_iterations, num, J, hparams, gpu, burnout, step)
 
-vs_n, hs_n = hparams.nv, hparams.nh #100,100
-c_dict_vh = build_correlation_functions(vs[:,1:vs_n,:], hs[:,1:hs_n,:], Int(num_iterations/step), cor_step)
-c_dict = build_correlation_functions(xs[:,1:vs_n,:], ys[:,1:hs_n,:], Int(num_iterations/step), cor_step)
-c_dict_uw = build_correlation_functions(Array{Float64}(us[:,1:hs_n,:]), Array{Float64}(ws[:,1:hs_n,:]), Int(num_iterations/step), cor_step)
+for replica in 1:1
+    @time vs, hs, xs, ys, us, ws = generate_samples(num_iterations, num, J, hparams, gpu, burnout, step)
+
+    vs_n, hs_n = hparams.nv, hparams.nh #100,100
+    c_dict_vh = build_correlation_functions(vs[:,1:vs_n,:], hs[:,1:hs_n,:], Int(num_iterations/step), cor_step)
+    c_dict = build_correlation_functions(xs[:,1:vs_n,:], ys[:,1:hs_n,:], Int(num_iterations/step), cor_step)
+    c_dict_uw = build_correlation_functions(Array{Float64}(us[:,1:hs_n,:]), Array{Float64}(ws[:,1:hs_n,:]), Int(num_iterations/step), cor_step)
+    if replica == 1
+        global c_dict_uw_stat = c_dict_uw
+    else
+        for key in keys(c_dict_uw)
+            c_dict_uw_stat[key] = c_dict_uw_stat[key] .+ c_dict_uw[key]
+        end
+    end
+end
+for key in keys(c_dict_uw)
+    c_dict_uw_stat[key] = c_dict_uw_stat[key]/100
+end
+
+c_dict_uw = c_dict_uw_stat
+mean_spin = mean(cat(vs,hs,dims=2),dims=2)
+# mean_spin = mean(cat(us,ws,dims=2),dims=2)
+c_dict_mu = build_correlation_functions(mean_spin, mean_spin, Int(num_iterations/step), cor_step)
+plot(c_dict_mu[:1])
+plot(reshape(mean(mean_spin,dims=1),:))
 
 begin
     # Generate a gradient from blue to red
@@ -188,7 +229,7 @@ begin
     p6 = plot!(size=(700,500))
 
     p = plot(p1,p2,p3,p4,p5,p6, size=(1200,900), layout=(3,2))
-    savefig(p, PATH * "correlation_visible_$modelName.png")
+    # savefig(p, PATH * "correlation_visible_$modelName.png")
     p
 end
 
@@ -199,7 +240,7 @@ begin
     mat = cat([cat([reshape(v[:,i+j*lnum],28,28) for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
     mat_rot = reverse(transpose(mat), dims=1)
     f1 = heatmap(cpu(mat_rot), size=(900,900))
-    savefig(f1, PATH * "Sample_$modelName.png")
+    # savefig(f1, PATH * "Sample_$modelName.png")
     f1
 end
 
@@ -232,7 +273,7 @@ function char_time_ft(ar, res=1)
 end
 
 begin
-    idx = 10
+    idx = 1
     τ = char_time(c_dict_uw[1][:,idx])
     τ_ft = char_time_ft(c_dict_uw[1][:,idx])
 
@@ -242,6 +283,33 @@ begin
     plot!(0:100, t->exp(-t/τ_ft), lw=2, label="fit ft $τ_ft")
     hline!([0], lw=2, color=:black)
 end
+
+
+# Plot each u-w curve with a color from the gradient
+p3 = plot(legend=false, lw=2, xlabel="Time (x$(step*cor_step))", ylabel="Correlation", title="Visible layer u", frame=:box, size=(700,500))
+for i in 1:size(c_dict_uw[1], 2)
+    p3 = plot!(c_dict_uw[1][1:25, i], color=color_gradient[i], alpha=0.5, lw=2)
+end
+p3 = plot!(size=(700,500))
+
+p1b = plot(frame=:box, size=(700,500), title="FT")
+τ_u = [char_time_ft(c_dict_uw[1][1:end-1,idx]) for idx in 1:hs_n] .* (step * cor_step)
+τbs_u = [char_time(c_dict_uw[1][1:end-1,idx]) for idx in 1:hs_n] .* (step * cor_step)
+τ_w = [char_time_ft(c_dict_uw[2][1:end-1,idx]) for idx in 1:hs_n] .* (step * cor_step)
+τbs_w = [char_time(c_dict_uw[2][1:end-1,idx]) for idx in 1:hs_n] .* (step * cor_step)
+p1b = plot!(log.(τ_u ./ cpu(F.S[1:hs_n])), 
+    marker=:circle, markerstrokewidth=0.1, label="u")
+
+p1b = plot(cpu(F.S[1:hs_n]), τ_u, marker=:circle, markerstrokewidth=0.1, label="u")
+p1b = plot!(cpu(F.S[1:hs_n]), τbs_u, marker=:circle, markerstrokewidth=0.1, label="u")
+
+p1b = plot(cpu(F.S[1:hs_n]), τ_w, marker=:circle, markerstrokewidth=0.1, label="w")
+p1b = plot!(cpu(F.S[1:hs_n]), τbs_w, marker=:circle, markerstrokewidth=0.1, label="w")
+
+plot(τ_u, st=:hist)
+plot!(τbs, st=:hist)
+
+plot(cpu(F.S[1:hs_n]), st=:hist)
 
 begin
     p1 = plot(frame=:box, size=(700,500), title="Int over C(t)")
@@ -319,7 +387,7 @@ begin
     p3b = plot!(1:size(y,1), λ-> a+b*λ , lw=3, c=:black, label=round(b, digits=3))
 
     p = plot(p1, p1b, p2, p2b, p3, p3b, layout=(3,2), size=(700,700), xlabel="index", ylabel="log(τ/λ)")
-    savefig(p, PATH * "tau_lambda_ratio_$modelName.png")
+    # savefig(p, PATH * "tau_lambda_ratio_$modelName.png")
     p
 end
 
