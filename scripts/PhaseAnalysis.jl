@@ -50,6 +50,16 @@ function gibbs_sample(J::Weights, hparams::HyperParams, num::Int=5000, steps::In
     v, h
 end
 
+function gibbs_sample(v, J::Weights, hparams::HyperParams, num::Int=5000, steps::Int=1000)
+    v = v |> dev
+    local h
+    for _ in 1:steps
+        h = sign.(rand(hparams.nh, num) |> dev .< σ.(J.w' * v .+ J.b))
+        v = sign.(rand(hparams.nv, num) |> dev .< σ.(J.w * h .+ J.a))
+    end
+    v, h
+end
+
 ########################
 function create_diagram_exact(J::Weights, hparams::HyperParams)
     phase_array = zeros(size(collect(0:0.1:1.5),1),size(collect(0.1:0.1:1.5),1)) 

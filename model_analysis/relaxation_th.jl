@@ -12,7 +12,7 @@ function generate_corr_plots(J::Weights, hparams::HyperParams, energy_state::Boo
     Δ = (zs .- mean(zs,dims=2))
     @ein cor2body_ref[i,j] := Δ[i,k] * Δ[j,k]
     cor2body_ref = cor2body_ref * 2.0^(-(hparams.nv+hparams.nh))
-    idx_2 = findall(x->x>0.2, cor2body_ref)
+    idx_2 = findall(x->isapprox(x,0.25,atol=1e-2), cor2body_ref)
     @info idx_2
 
     @ein cor3body_ref[i,j,l] := Δ[i,k] * Δ[j,k] * Δ[l,k]
@@ -20,8 +20,11 @@ function generate_corr_plots(J::Weights, hparams::HyperParams, energy_state::Boo
 
     @ein cor4body_ref[i,j,l,m] := Δ[i,k] * Δ[j,k] * Δ[l,k] * Δ[m,k]
     cor4body_ref = cor4body_ref * 2.0^(-(hparams.nv+hparams.nh))
-    idx_4a = findall(x->x>2*0.25^2-0.001 , cor4body_ref)
-    idx_4b = findall(x->x<2*0.25^2-0.001 && x>0.25^2-0.001, cor4body_ref)
+    # idx_4a = findall(x->x>2*0.25^2-0.001 , cor4body_ref)
+    # idx_4b = findall(x->x<2*0.25^2-0.001 && x>0.25^2-0.001, cor4body_ref)
+    idx_4a = findall(x->isapprox(x,3*0.25^2, atol=1e-2) , cor4body_ref)
+    idx_4b = findall(x->isapprox(x,0.25^2, atol=1e-2), cor4body_ref)
+
     @info idx_4a
     @info idx_4b
 
@@ -92,7 +95,7 @@ function generate_corr_plots(J::Weights, hparams::HyperParams, energy_state::Boo
     f3 = plot(cor2body[idx_2] ./ 0.25 .- 1, lw=0.5, 
         markersize=5, markershape=:circle, 
         markerstrokewidth=0, label="RBM",
-        ylabel="σ₄ rel deviation", xlabel="Index",
+        ylabel="σ₂ rel deviation", xlabel="Index",
         frame=:box, legendfontsize=15, tickfontsize=15, 
         labelfontsize=15, size=(700,500))
     f3 = plot!(cor2body_ref[idx_2] ./ (0.25) .- 1 , lw=0.8, 
@@ -130,9 +133,16 @@ J.w = rand(size(J.w)[1], size(J.w)[2])
 J.a = rand(size(J.a)[1])
 J.b = rand(size(J.b)[1])
 
-ff, energy_exact, energy_gibbs = generate_corr_plots(J, hparams, true)
+ff, energy_exact, energy_gibbs = generate_corr_plots(J, hparams, false)
 ff
 savefig(ff, PATH * "fig_nv10_nh6_Submodel.png")
+
+F = LinearAlgebra.svd(J.w, full=true)
+J.w = F.U * vcat(Diagonal(F.S .+ 10), zeros(hparams.nv-hparams.nh, hparams.nh)) * F.Vt
+plot(F.S)
+
+maximum((J.w .- (F.U * vcat(Diagonal(F.S), zeros(hparams.nv-hparams.nh, hparams.nh)) * F.Vt)) ./ J.w)
+(F.U * vcat(Diagonal(F.S), zeros(hparams.nv-hparams.nh, hparams.nh)) * F.Vt)
 
 fig = plot(energy_exact, st=:histogram, normalized=true, lw=0.0, 
     bins=200, tickfontsize=15, frame=:box, label="Exact", 
