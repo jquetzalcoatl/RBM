@@ -73,6 +73,7 @@ function find_params(z::Float64,Λ::Float64,k::Float64,γ::Float64,α::Float64,�
     @info "Force at z0:", dU_effdz(z0,Λ,k_t,γ_t,α_t,μ,1.0,1.0,1.0)
     @info "Minimum?", d2U_effdz2(z0,Λ,k_t,γ_t,α_t,μ,1.0,1.0,1.0) > 0
     @info "Roots:", rts
+    @info "Energy at rts", U_eff.(rts,Λ,k_t,γ_t,α_t,μ)
     res = brownian_motion(t_max, z0 .* ones(samples), dt, x->-dU_effdz(x,Λ .* ones(samples), k_t .* ones(samples), γ_t .* ones(samples), 
             α_t .* ones(samples), μ .* ones(samples), ones(samples),dt, 1.0))
     @info "Moment constraint:", constr(res[end,:], Λ,k_t,γ_t,α_t, μ)
@@ -112,6 +113,7 @@ function find_params_2(z::Float64,Λ::Float64,k::Float64,γ::Float64,α::Float64
     @info "Force at z0:", dU_effdz(z0,Λ,k_t,γ_t,α_t,μ,1.0,1.0,1.0)
     @info "Minimum?", d2U_effdz2(z0,Λ,k_t,γ_t,α_t,μ,1.0,1.0,1.0) > 0
     @info "Roots:", rts
+    @info "Energy at rts", U_eff.(rts,Λ,k_t,γ_t,α_t,μ)
     @info "Moment constraint:", constr(res[end,:], Λ,k_t,γ_t,α_t, μ)
     z0,Λ,k_t,γ_t,α_t,μ
 end

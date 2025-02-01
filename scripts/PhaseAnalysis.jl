@@ -1,7 +1,7 @@
 using LinearAlgebra, Plots, OMEinsum
 using CUDA
-CUDA.device_reset!()
-CUDA.device!(1)
+# CUDA.device_reset!()
+# CUDA.device!(1)
 include("../scripts/exact_partition.jl")
 include("../utils/train.jl")
 
