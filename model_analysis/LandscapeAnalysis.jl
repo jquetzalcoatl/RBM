@@ -9,7 +9,7 @@ include("../scripts/langevin_doubleWell.jl")
 
 PATH = "/home/javier/Projects/RBM/NewResults/"
 
-modelName = config.model_analysis["files"][6]
+modelName = config.model_analysis["files"][1]
 modelName = "CD-500-T1-BW-replica1"
 modelName = "CD-FMNIST-500-T1000-BW-replica1-L"
 modelName = "PCD-100-replica1"
@@ -276,14 +276,14 @@ function get_landscape_params_mstd(modelName::String, hparams::HyperParams, dict
     return λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs
 end
 
-@time λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params(modelName, hparams, dict, 100, seq=true);
+@time λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params(modelName, hparams, dict, 100, seq=false);
 λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params(hparams, 2)
 @time λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params_mstd(modelName, hparams, dict, 1000);
 
 f_uw(u,w, a0, b0, λ) = a0[1:hparams.nh,:] .* b0 ./ λ .- λ .^2 .* (u .^ 2 .- w .^ 2) ./ 2
 
 begin
-    idx=1
+    idx=20
     label="0"
     L = min(hparams.nh, hparams.nv)
     p1 = hline([0], ls=:dash, color=:black, label="Saddle point", 
@@ -495,16 +495,43 @@ cov(u_s["1"][1,1:500,end], w_s["1"][1,1:500,end])
 ##################################################################################
 ##################################################################################
 ##################################################################################
-f(x,y,i, a0, b0, λ) = - (a0[i]*x + b0[i]*y + λ[i]*x*y )
+PATH
+f(x,y,i, a0, b0, λ) = - (a0[i]*x + b0[i]*y + λ[i]*x*y )/(hparams.nv+hparams.nh)
 modelName
-enLandIdx = 2
+enLandIdx = 1
 ep = 1
-p = plot(-15:10, -10:13, (x,y)->f(x,y,enLandIdx, a0s[:,ep], b0s[:,ep], λs[:,ep]), st=:contourf, c=cgrad(:matter, 105, rev=true, scale = :exp, categorical=false), 
-    xlabel="x", ylabel="y", clabels=true)
-for num_label in string.(collect(0:9))
-    plot!(x_s[num_label][enLandIdx,:,ep], y_s[num_label][enLandIdx,:,ep], st=:scatter, markerstrokewidth=0.1)
+# J = load("$(dict["bdir"])/models/$(modelName)/J/J_$(ep).jld", "J")
+rbm, J, m, hparams, opt = loadModel(modelName, dev, idx=100);
+rbm, J, m, hparams, rbmZ = initModel(nv=hparams.nv, nh=hparams.nh, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+F = LinearAlgebra.svd(J.w, full=true);
+
+v,h = gibbs_sample(J, hparams, 200,2000)
+
+lnum=10
+mat = cat([cat([reshape(v[:,i+j*lnum],28,28) for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
+mat_rot = reverse(transpose(mat), dims=1)
+fig = heatmap(cpu(mat_rot), c=cgrad(:buda, 2, rev=true, scale = :linear, categorical=true), legend=:none, ticks=:none, frame=:box, size=(550,500))
+savefig(fig, PATH * "MS/numbers_samples.pdf")
+
+
+x = cpu(-F.U' * v)
+y = cpu(-F.Vt * h);
+p_list = []
+for enLandIdx in [1,2,30,498]
+    p = plot(-15-b0s[enLandIdx,ep]/λs[enLandIdx,ep]:10-b0s[enLandIdx,ep]/λs[enLandIdx,ep], -15-a0s[enLandIdx,ep]/λs[enLandIdx,ep]:13-a0s[enLandIdx,ep]/λs[enLandIdx,ep], (x,y)->f(x,y,enLandIdx, a0s[:,ep], b0s[:,ep], λs[:,ep]), 
+        st=:contourf, c=cgrad(:vik, 105, rev=true, scale = :linear, categorical=false), 
+        clabels=true, legend=:none)
+    p = plot!(x[enLandIdx,:], y[enLandIdx,:], st=:scatter, markerstrokewidth=0.01, markersize=10, color=:gray, markershape=:hexagon, label=:none)
+    for num_label in string.(collect(0:9))
+        p = plot!(x_s[num_label][enLandIdx,:,ep], y_s[num_label][enLandIdx,:,ep], st=:scatter, markerstrokewidth=0.01, markersize=5)
+    end
+    p = plot!([-b0s[enLandIdx,ep]/λs[enLandIdx,ep]],[-a0s[enLandIdx,ep]/λs[enLandIdx,ep]], ms=15, st=:scatter, c=:magenta, legend=:none,
+        markershape=:star5, markerstrokewidth=0, frame=:box, label="a")
+    push!(p_list,p)
 end
-plot!([-b0s[enLandIdx,ep]/λs[enLandIdx,ep]],[-a0s[enLandIdx,ep]/λs[enLandIdx,ep]], ms=15, st=:scatter, c=:black, legend=:none, markershape=:x)
+
+fig = plot(p_list..., size=(780,700), xlabel="x", ylabel="y")
+savefig(fig, PATH * "MS/en_land_rand.pdf")
 
 ep=100
 plot()
