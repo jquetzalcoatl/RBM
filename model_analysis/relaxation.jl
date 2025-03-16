@@ -10,23 +10,24 @@ begin
     Threads.nthreads()
 end
 
-include("../utils/train.jl")
+# include("../utils/train.jl")
 
-include("../scripts/exact_partition.jl")
-include("../scripts/gaussian_partition.jl")
-include("../scripts/gaussian_orth_partition.jl")
-include("../scripts/RAIS.jl")
+# include("../scripts/exact_partition.jl")
+# include("../scripts/gaussian_partition.jl")
+# include("../scripts/gaussian_orth_partition.jl")
+# include("../scripts/RAIS.jl")
 
-include("./PhaseAnalysis.jl")
+include("../scripts/PhaseAnalysis.jl")
 
 # Random.seed!(1234);
 # rbm, J, m, hparams, rbmZ = initModel(nv=5, nh=5, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 
-begin
-    include("../configs/yaml_loader.jl")
-    PATH = "/home/javier/Projects/RBM/Results/"
-    config, _ = load_yaml_iter();
-end
+# begin
+#     include("../configs/yaml_loader.jl")
+#     PATH = "/home/javier/Projects/RBM/Results/"
+#     config, _ = load_yaml_iter();
+# end
+PATH = "/home/javier/Projects/RBM/Results/"
 config.model_analysis["files"]
 
 modelName = "PCD-FMNIST-500-replica1-L" #config.model_analysis["files"][1]
@@ -46,6 +47,8 @@ rbm, J, m, hparams, rbmZ = initModel(nv=10, nh=6, batch_size=500, lr=1.5, t=10, 
 
 # J.w = F.U * gpu(vcat(diagm(cpu(F.S) * 10), zeros(hparams.nv-hparams.nh,hparams.nh))) * F.Vt
 
+4/(√784 - √500)
+
 plot(Array(reshape(J.w,:)), st=:histogram)
 J.w = J.w .* 5 .+ 0.01
 
@@ -60,24 +63,27 @@ J.a = zeros(size(J.a))
 mag = magnetization(J, hparams)
 mag = magnetization_Gibbs(J, hparams, 1000,500)
 
+####
+
 begin
     x0 = abs(mean(J.w))/std(J.w)
-    y0 = 1/((hparams.nv + hparams.nh)*std(J.w))
-    # y0 = 1/(std(J.w))
+    # y0 = 1/((hparams.nv + hparams.nh)*std(J.w))
+    y0 = 1/(std(J.w))
     # plot(xlim=[0,2], ylim=[0,3], label=false)
     plot(label=false)
     hline!([1],lw=2, label=false)
     plot!([1,2], x->x, lw=2, label=false)
     vline!([1], lw=2, label=false)
-    plot!([x0], [y0], label="$(round(x0,digits=2)), $(round(y0,digits=2))", marker=:circle, markerstrokewidth=0.1)
+    plot!([x0], [y0], label="$(round(x0,digits=2)), $(round(y0,digits=2))", marker=:circle, markerstrokewidth=1.)
+    # @show x0
 end
 
 ###########Corr
-function gibbs_sample(v, J, dev)
-    h = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(J.w' * v .+ J.b))) |> dev
-    v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(J.w * h .+ J.a))) |> dev
-    return v, h
-end
+# function gibbs_sample(v, J, dev)
+#     h = Array{Float32}(sign.(rand(hparams.nh, num) |> dev .< σ.(J.w' * v .+ J.b))) |> dev
+#     v = Array{Float32}(sign.(rand(hparams.nv, num) |> dev .< σ.(J.w * h .+ J.a))) |> dev
+#     return v, h
+# end
 
 function self_correlation(arr, t, τ)
     μ = mean(arr, dims=1)
@@ -95,22 +101,22 @@ function c_i_tau(arr,τ, steps=size(arr,3))
     mean(CT, dims=1)
 end
 
-function generate_samples(num_iterations, num, J, hparams, gpu, burnout=100, step=1)
+function generate_samples(num_iterations::Int, num::Int, J::Weights, hparams::HyperParams, 
+        burnout::Int=100, step::Int=1)
     n_it = Int(floor(num_iterations/step))
     F = LinearAlgebra.svd(J.w, full=true);
     vs = Array{Float32,3}(undef, num, hparams.nv, n_it)
     hs = Array{Float32,3}(undef, num, hparams.nh, n_it)
     xs = Array{Float32,3}(undef, num, hparams.nv, n_it)
     ys = Array{Float32,3}(undef, num, hparams.nh, n_it)
-    us = Array{Float32,3}(undef, num, hparams.nh, n_it)
-    ws = Array{Float32,3}(undef, num, hparams.nh, n_it)
+    us = hparams.nv >= hparams.nh ? Array{Float32,3}(undef, num, hparams.nh, n_it) : Array{Float32,3}(undef, num, hparams.nv, n_it)
+    ws = hparams.nv >= hparams.nh ? Array{Float32,3}(undef, num, hparams.nh, n_it) : Array{Float32,3}(undef, num, hparams.nv, n_it)
 
-    v = rand([0,1], hparams.nv, num) |> gpu
-    for i in 1:burnout
-        v, h = gibbs_sample(v, J, gpu)
-    end
+    
+    v,h = gibbs_sample(J, hparams, num, burnout)
+    
     for i in 1:num_iterations
-        v, h = gibbs_sample(v, J, gpu)
+        v, h = gibbs_sample(v, J, hparams, num, 1) #gibbs_sample(v, J, gpu)
         if i % step == 0
             x, y = F.U' * v, F.Vt * h
             u, w = generate_uws(J, hparams, x, y, F)
@@ -127,13 +133,13 @@ function generate_samples(num_iterations, num, J, hparams, gpu, burnout=100, ste
     return vs, hs, xs, ys, us, ws
 end
 
-function generate_uws(J, hparams,xs,ys, F)
-    a0 = (F.U' * J.a)[1:hparams.nh]
-    b0 = (F.Vt * J.b)
+function generate_uws(J::Weights, hparams::HyperParams,xs,ys, F)
+    a0 = hparams.nv >= hparams.nh ? (F.U' * J.a)[1:hparams.nh] : (F.U' * J.a)
+    b0 = hparams.nv >= hparams.nh ? (F.Vt * J.b) : (F.Vt * J.b)[1:hparams.nv]
     x_sp = - b0 ./ F.S
     y_sp = - a0 ./ F.S
-    u = 1/√2 .* ((xs[1:hparams.nh,:] + ys) .- x_sp .- y_sp)
-    w = 1/√2 .* ((xs[1:hparams.nh,:] - ys) .- x_sp .+ y_sp)
+    u = hparams.nv >= hparams.nh ? (1/√2 .* ((xs[1:hparams.nh,:] + ys) .- x_sp .- y_sp)) : (1/√2 .* ((xs + ys[1:hparams.nv,:]) .- x_sp .- y_sp))
+    w = hparams.nv >= hparams.nh ? (1/√2 .* ((xs[1:hparams.nh,:] - ys) .- x_sp .+ y_sp)) : (1/√2 .* ((xs - ys[1:hparams.nv,:]) .- x_sp .+ y_sp))
     return u, w
 end
 
@@ -154,37 +160,62 @@ function build_correlation_functions(vs, hs, tmax, Δt=1)
     return c_dict  
 end
 
-num_iterations = 100  # replace with the number of iterations you want
+num_iterations = 5000  # replace with the number of iterations you want
 num=100
 burnout=5000
-step=1
+step=10
 cor_step = 1
 
-for replica in 1:1
-    @time vs, hs, xs, ys, us, ws = generate_samples(num_iterations, num, J, hparams, gpu, burnout, step)
+# for replica in 1:1
+#     @time vs, hs, xs, ys, us, ws = generate_samples(num_iterations, num, J, hparams, gpu, burnout, step)
 
-    vs_n, hs_n = hparams.nv, hparams.nh #100,100
-    c_dict_vh = build_correlation_functions(vs[:,1:vs_n,:], hs[:,1:hs_n,:], Int(num_iterations/step), cor_step)
-    c_dict = build_correlation_functions(xs[:,1:vs_n,:], ys[:,1:hs_n,:], Int(num_iterations/step), cor_step)
-    c_dict_uw = build_correlation_functions(Array{Float64}(us[:,1:hs_n,:]), Array{Float64}(ws[:,1:hs_n,:]), Int(num_iterations/step), cor_step)
-    if replica == 1
-        global c_dict_uw_stat = c_dict_uw
-    else
-        for key in keys(c_dict_uw)
-            c_dict_uw_stat[key] = c_dict_uw_stat[key] .+ c_dict_uw[key]
-        end
-    end
-end
-for key in keys(c_dict_uw)
-    c_dict_uw_stat[key] = c_dict_uw_stat[key]/100
-end
+#     vs_n, hs_n = hparams.nv, hparams.nh #100,100
+#     c_dict_vh = build_correlation_functions(vs[:,1:vs_n,:], hs[:,1:hs_n,:], Int(num_iterations/step), cor_step)
+#     c_dict = build_correlation_functions(xs[:,1:vs_n,:], ys[:,1:hs_n,:], Int(num_iterations/step), cor_step)
+#     c_dict_uw = build_correlation_functions(Array{Float64}(us[:,1:hs_n,:]), Array{Float64}(ws[:,1:hs_n,:]), Int(num_iterations/step), cor_step)
+#     if replica == 1
+#         global c_dict_uw_stat = c_dict_uw
+#     else
+#         for key in keys(c_dict_uw)
+#             c_dict_uw_stat[key] = c_dict_uw_stat[key] .+ c_dict_uw[key]
+#         end
+#     end
+# end
+# for key in keys(c_dict_uw)
+#     c_dict_uw_stat[key] = c_dict_uw_stat[key]/100
+# end
+rbm, J, m, hparams, rbmZ = initModel(nv=784, nh=20, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+J.w = J.w * 100
+# J.w = J.w .+ 0.05
+std(J.w)
+mean(J.w)
+vs, hs, xs, ys, us, ws = generate_samples(num_iterations, num, J, hparams, burnout, step)
+# c_dict_vh = build_correlation_functions(vs, hs, Int(num_iterations/step), cor_step)
+c_dict_uw = build_correlation_functions(us, ws[:,1:2,:], Int(num_iterations/step), cor_step)
 
-c_dict_uw = c_dict_uw_stat
+plot(c_dict_uw[1][:,1], marker=:circle, markerstrokewidth=0.1)
+
+4/abs(√784 - √5000)
+4/√abs(784 - 5000)
+
+(40-√784)^2
+
+F = LinearAlgebra.svd(J.w, full=true);
+plot(cpu(F.S), st=:histogram)
+
+mom2 = mean( (us[:,:,end] .- mean(us[:,:,end],dims=1) ) .^ 2, dims=1)
+mom4 = mean( (us[:,:,end] .- mean(us[:,:,end],dims=1) ) .^ 4, dims=1)
+
+plot(reshape(mom4 ./ (mom2 .^ 2),:))
+
+#####
 mean_spin = mean(cat(vs,hs,dims=2),dims=2)
 # mean_spin = mean(cat(us,ws,dims=2),dims=2)
 c_dict_mu = build_correlation_functions(mean_spin, mean_spin, Int(num_iterations/step), cor_step)
 plot(c_dict_mu[:1])
 plot(reshape(mean(mean_spin,dims=1),:))
+
+c_dict_vh[1]
 
 begin
     # Generate a gradient from blue to red

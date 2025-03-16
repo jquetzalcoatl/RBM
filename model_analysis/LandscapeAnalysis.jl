@@ -1,5 +1,5 @@
 using Random, Plots, Statistics, LinearAlgebra, Plots.PlotMeasures
-using CUDA
+using CUDA, LaTeXStrings
 CUDA.device_reset!()
 CUDA.device!(0)
 
@@ -9,7 +9,7 @@ include("../scripts/langevin_doubleWell.jl")
 
 PATH = "/home/javier/Projects/RBM/NewResults/"
 
-modelName = config.model_analysis["files"][1]
+modelName = config.model_analysis["files"][11]
 modelName = "CD-500-T1-BW-replica1"
 modelName = "CD-FMNIST-500-T1000-BW-replica1-L"
 modelName = "PCD-100-replica1"
@@ -283,11 +283,11 @@ end
 f_uw(u,w, a0, b0, λ) = a0[1:hparams.nh,:] .* b0 ./ λ .- λ .^2 .* (u .^ 2 .- w .^ 2) ./ 2
 
 begin
-    idx=20
+    idx=1
     label="0"
     L = min(hparams.nh, hparams.nv)
-    p1 = hline([0], ls=:dash, color=:black, label="Saddle point", 
-        ylabel="Position u", title="$(idx)")
+    p1 = hline([0], ls=:dash, color=:black, label="E₁ saddle point", 
+        ylabel=L"\textbf{z_1}", title="$(idx)")
     sgn = sign.(μ_w[idx,:])
     # sgn = ones(21)
     p1 = plot!(sgn .* μ_u[idx,:], label="μ", marker=:circle, markerstrokewidth=0.0, markersize=5, lw=2)
@@ -295,16 +295,18 @@ begin
         markerstrokewidth=0.0, markersize=5, lw=2, ribbon=u_s[label][idx,2,:])
     p1 = plot!(sgn .* u_gibbs[idx,1,:], label="Gibbs data", marker=:circle, 
         markerstrokewidth=0.0, markersize=2, lw=2, ribbon=u_gibbs[idx,2,:], frame=:box, 
-        legend = :outertopright) #, xlim=(0,100), ylim=(-5,19))
+        xlabel="Epochs", tickfontsize=15, labelfontsize=15, legendfontsize=10, size=(700,500)) 
+        # legend = :outertopright) #, xlim=(0,100), ylim=(-5,19))
 
     p2 = hline([0], ls=:dash, color=:black, label="Saddle point",
-        ylabel="Position w",)
+        ylabel=L"\textbf{z_{M+1}}",)
     p2 = plot!(sgn .* μ_w[idx,:], label="μ", marker=:circle, markerstrokewidth=0.0, markersize=8, lw=2)
     p2 = plot!(sgn .* w_s[label][idx,1,:], label="Test data", marker=:circle, 
         markerstrokewidth=0.0, markersize=5, lw=2, ribbon=w_s[label][idx,2,:])
     p2 = plot!(sgn .* w_gibbs[idx,1,:], label="Gibbs sampled", marker=:circle, 
         markerstrokewidth=0.0, markersize=2, lw=2, ribbon= w_gibbs[idx,2,:], frame=:box,
-        legend = :outertopright) #, xlim=(30,40))
+        xlabel="Epochs", tickfontsize=15, labelfontsize=15, legendfontsize=10, size=(700,500))
+        # legend = :outertopright) #, xlim=(30,40))
 
     p3 = plot(λs[idx,:], ls=:dash, color=:black, label="Sing value", ylabel="", xlabel="Epoch" )
 
@@ -333,6 +335,10 @@ begin
     # savefig(p, PATH * "Symmetry_$(modelName)_$(idx).png")
     p
 end
+p1
+p2
+savefig(p1, PATH * "MS/enLandEpochs_u1_784.pdf")
+savefig(p2, PATH * "MS/enLandEpochs_w1_784.pdf")
 
 begin
     idx=1
