@@ -433,7 +433,7 @@ k_x_dict, k_y_dict = k_x_dict_2, k_y_dict_2
 k_x_dict["2000"] = k_x_dict_2["2000"]
 
 fig = plot([1/key for key in l], [k_x_dict[string(key)]["mean"] for key in l], 
-    ribbon=[k_x_dict[string(key)]["std"] for key in l], lw=0, marker=:circle, markersize=10,
+    ribbon=[k_x_dict[string(key)]["std"] for key in l], lw=0, marker=:circle, markersize=15,
     markerstrokewidth=0, label="RBM", color=:magenta)
 # plot!([1/key for key in l], [k_gauss_dict[string(key)]["mean"] for key in l], 
     # ribbon=[k_gauss_dict[string(key)]["std"] for key in l])
@@ -442,7 +442,9 @@ fig = plot([1/key for key in l], [k_x_dict[string(key)]["mean"] for key in l],
 fig = hline!([3],lw=3,ls=:dash, color=:black, label="Gaussian")
 fig = plot!(0.:0.0001:0.002, x->fit.b + fit.a*x, label="Linear Fit", lw=3, ribbon=1e-4, color=:blue)
 fig = plot!(xlabel="1/N", ylabel="Kurtosis", tickfontsize=15, labelfontsize=15, legendfontsize=15, 
-    frame=:box, size=(800,500), left_margin=3mm, right_margin=5mm, bottom_margin=2mm, legend = :topright)
+    frame=:box, size=(700,650), left_margin=3mm, right_margin=5mm, bottom_margin=2mm, legend = :topright)
+
+savefig(fig, PATH * "MS/Kurtosis_vs_RBMSize.pdf")
 
 
 
@@ -450,3 +452,4 @@ using EasyFit, LaTeXStrings
 
 fit = fitlinear([1/key for key in l],[k_x_dict[string(key)]["mean"] for key in l])
 fit.ypred
+fit.residues
