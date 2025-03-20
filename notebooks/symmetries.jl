@@ -453,3 +453,32 @@ using EasyFit, LaTeXStrings
 fit = fitlinear([1/key for key in l],[k_x_dict[string(key)]["mean"] for key in l])
 fit.ypred
 fit.residues
+
+##############Jstd
+using StatsBase#, Divergences, Distances, Plots
+x = randn(100000)
+y = randn(1000000) .+ 1
+
+p = fit(Histogram, reshape(cpu(J.w),:), nbins=1000)
+q = fit(Histogram, cpu(reshape(MrotU*cpu(F.U)*MrotU'*Σ*MrotV*cpu(F.Vt)*MrotV,:)), p.edges[1], closed=:left)
+p_dis = p.weights/sum(p.weights)
+q_dis = q.weights/sum(q.weights)
+plot(q_dis)
+plot!(p_dis)
+
+# KL
+# sum(p_dis .* log.((p_dis .+ 1e-7) ./ (q_dis .+ 1e-7)))
+
+# JS
+# 0.5 * (sum(p_dis .* log.(2 .* (p_dis .+ 1e-7) ./ (q_dis .+ p_dis .+ 1e-7))) + sum(q_dis .* log.(2 .* (q_dis .+ 1e-7) ./ (p_dis .+ q_dis .+ 1e-7))))
+
+p_dis
+function div_(p::Vector{Float64},q::Vector{Float64}, ϵ::Float64=1e-9)
+    #KL
+    kl = sum(p .* log.((p .+ ϵ) ./ (q .+ ϵ)))
+    # JS
+    js = 0.5 * (sum(p .* log.(2 .* (p .+ ϵ) ./ (q .+ p .+ ϵ))) + sum(q .* log.(2 .* (q .+ ϵ) ./ (p .+ q .+ ϵ))))
+    return kl, js
+end
+
+div_(p_dis,q_dis)
