@@ -1,0 +1,4 @@
+BGS: 1000
+nbetas: 100.0
+num_models: 10
+num_chains: 500

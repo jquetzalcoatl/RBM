@@ -1,2 +1,7 @@
 defaults:
   - model_analysis: nCorr
+  # - phase_diagrams: PhaseAnalysis_1
+  - phase_diagrams: PhaseAnalysis_2
+  - gpu: config_1
+  - loglikelihood: config_1
+

@@ -1,0 +1,19 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: RBM
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: J. Quetzalcoatl
+    family-names: Toledo-Marin
+    orcid: 'https://orcid.org/0000-0001-6212-1033'
+    affiliation: TRIUMF
+identifiers:
+  - type: url
+    value: 'http://none'
+repository-code: 'https://github.com/jquetzalcoatl/RBM'
+

@@ -37,12 +37,12 @@ function loadLandscapes(x_i, y_i, PATH = "/home/javier/Projects/RBM/Results/",  
             ysp = -Array(F.U' * J.a)[1:500] ./ Array(F.S);
 
             if i != 1
-                R[string(num_label)] = cat(R[string(num_label)], .√ ((x[1:500,:] .- xsp) .^2 .+ (y .- ysp) .^2), dims=3)
+                R[string(num_label)] = cat(R[string(num_label)], sqrt.((x[1:500,:] .- xsp) .^2 .+ (y .- ysp) .^2), dims=3)
                 Θ[string(num_label)] = cat(Θ[string(num_label)], atan.((y .- ysp) , (x[1:500,:] .- xsp)), dims=3)
                 x_s[string(num_label)] = cat(x_s[string(num_label)], x, dims=3)
                 y_s[string(num_label)] = cat(y_s[string(num_label)], y, dims=3);
             else
-                R[string(num_label)] = .√ ((x[1:500,:] .- xsp) .^2 .+ (y .- ysp) .^2)
+                R[string(num_label)] = sqrt.((x[1:500,:] .- xsp) .^2 .+ (y .- ysp) .^2)
                 Θ[string(num_label)] = atan.((y .- ysp) , (x[1:500,:] .- xsp))
                 x_s[string(num_label)] = x
                 y_s[string(num_label)] = y;

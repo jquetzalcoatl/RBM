@@ -1,0 +1,8 @@
+nv: 7
+nh: 7
+num: 500
+steps: 500
+disorder_avg: 25
+fig1: "no_name"
+fig2: "no_name2"
+gpu_bool: false
