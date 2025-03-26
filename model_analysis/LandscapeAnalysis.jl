@@ -1,5 +1,5 @@
-using Random, Plots, Statistics, LinearAlgebra, Plots.PlotMeasures
-using CUDA, LaTeXStrings
+using Random, Plots, Statistics, LinearAlgebra, Plots.PlotMeasures,LaTeXStrings
+using CUDA
 CUDA.device_reset!()
 CUDA.device!(0)
 
@@ -9,7 +9,7 @@ include("../scripts/langevin_doubleWell.jl")
 
 PATH = "/home/javier/Projects/RBM/NewResults/"
 
-modelName = config.model_analysis["files"][11]
+modelName = config.model_analysis["files"][12]
 modelName = "CD-500-T1-BW-replica1"
 modelName = "CD-FMNIST-500-T1000-BW-replica1-L"
 modelName = "PCD-100-replica1"
@@ -277,7 +277,7 @@ function get_landscape_params_mstd(modelName::String, hparams::HyperParams, dict
 end
 
 @time λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params(modelName, hparams, dict, 100, seq=false);
-λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params(hparams, 2)
+λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params(hparams, 1)
 @time λs, a0s, b0s, x_s, y_s, R, θ, u_s, w_s, μ_u, μ_w, u_gibbs, w_gibbs = get_landscape_params_mstd(modelName, hparams, dict, 1000);
 
 f_uw(u,w, a0, b0, λ) = a0[1:hparams.nh,:] .* b0 ./ λ .- λ .^2 .* (u .^ 2 .- w .^ 2) ./ 2
@@ -286,8 +286,8 @@ begin
     idx=1
     label="0"
     L = min(hparams.nh, hparams.nv)
-    p1 = hline([0], ls=:dash, color=:black, label="E₁ saddle point", 
-        ylabel=L"\textbf{z_1}", title="$(idx)")
+    p1 = hline([0], ls=:dash, color=:black, label="Saddle point", 
+        ylabel=L"\textbf{z_1}")
     sgn = sign.(μ_w[idx,:])
     # sgn = ones(21)
     p1 = plot!(sgn .* μ_u[idx,:], label="μ", marker=:circle, markerstrokewidth=0.0, markersize=5, lw=2)
@@ -295,7 +295,7 @@ begin
         markerstrokewidth=0.0, markersize=5, lw=2, ribbon=u_s[label][idx,2,:])
     p1 = plot!(sgn .* u_gibbs[idx,1,:], label="Gibbs data", marker=:circle, 
         markerstrokewidth=0.0, markersize=2, lw=2, ribbon=u_gibbs[idx,2,:], frame=:box, 
-        xlabel="Epochs", tickfontsize=15, labelfontsize=15, legendfontsize=10, size=(700,500)) 
+         tickfontsize=15, labelfontsize=15, legendfontsize=10, size=(700,500), xticks=false) 
         # legend = :outertopright) #, xlim=(0,100), ylim=(-5,19))
 
     p2 = hline([0], ls=:dash, color=:black, label="Saddle point",
@@ -331,14 +331,14 @@ begin
     # p5 = plot(atan.( μ_w[idx,:], μ_u[idx,:] ), sqrt.( ( μ_u[idx,:] ) .^ 2 .+ ( μ_w[idx,:]) .^2), proj = :polar,
         # marker=:circle, markerstrokewidth=0.0, markersize=5, lw=2, color=[RGB(1/n,0,1-1/n) for n in 1:501])
 
-    p = plot(p1,p2,p3, layout=(3,1), size=(600,900), left_margin=5mm)
-    # savefig(p, PATH * "Symmetry_$(modelName)_$(idx).png")
+    p = plot(p1,p2, layout=(2,1), size=(700,900), left_margin=5mm)
+    savefig(p, PATH * "MS/Symmetry_$(modelName)_.png")
     p
 end
 p1
 p2
-savefig(p1, PATH * "MS/enLandEpochs_u1_784.pdf")
-savefig(p2, PATH * "MS/enLandEpochs_w1_784.pdf")
+savefig(p1, PATH * "MS/enLandEpochs_u1_3000.png")
+savefig(p2, PATH * "MS/enLandEpochs_w1_3000.png")
 
 begin
     idx=1
@@ -426,13 +426,13 @@ end
 ##################
 #########cholesky
 # rbm, J, m, hparams, rbmZ = initModel(nv=hparams.nv, nh=hparams.nh, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
-ep = 70
+ep = 100
 J = load("$(dict["bdir"])/models/$(modelName)/J/J_$(ep).jld", "J")
 J = Weights([getfield(J, field) |> dev for field in fieldnames(Weights)]...)
 
 F = LinearAlgebra.svd(J.w, full=true);
 delta = hparams.nh
-v,h = gibbs_sample(J, hparams, 200,1000)
+v,h = gibbs_sample(J, hparams, 10000,500)
 
 v,h = gibbs_sample(J, hparams, 2000,1)
 v,h = gibbs_sample(v, J, hparams, size(v,2),1)
@@ -442,7 +442,8 @@ y = cpu(F.Vt * h);
 
 
 z = vcat( hcat([y_s[lb][:,:,end] for lb in string.(collect(0:9))]...), hcat([x_s[lb][:,:,end] for lb in string.(collect(0:9))]...))
-z = vcat( y,x)
+z = vcat( hcat([x_s[lb][:,:,end] for lb in string.(collect(0:9))]...), hcat([y_s[lb][:,:,end] for lb in string.(collect(0:9))]...))
+z = vcat( x,y)
 
 cov1 = cov(z[1:2*hparams.nh,:]')
 cov1 = (cov1 + cov1')/2
@@ -450,26 +451,34 @@ ChD_1 = cholesky(Hermitian(cov1));
 
 # nsamples = 10000
 nsamples = size(z,2)
-z_samples = mean(z[1:2*hparams.nh,:], dims=2)[:] .+ ChD_1.L * randn(2*hparams.nh,nsamples);
+# z_samples = mean(z[1:2*hparams.nv,:], dims=2)[:] .+ ChD_1.L * randn(2*hparams.nv,nsamples)
+z_samples = mean(z[1:2*hparams.nv,:], dims=2)[:] .+ ChD_1.L * randn(2*hparams.nv,nsamples)
+
+
+
 
 figs = []
 for i in 1:2
+    Σ = cat(cpu(Diagonal(F.S)), (hparams.nv - hparams.nh > 0 ? zeros(abs(hparams.nv - hparams.nh), hparams.nh) : zeros(hparams.nv, abs(hparams.nv - hparams.nh))), 
+    dims=(hparams.nv - hparams.nh > 0 ? 1 : 2) )
     if i == 1
-        y_samples_unrot = z[1:delta,:]
-        v_samples_fc = σ.(cpu(F.U) * vcat(cpu(Diagonal(F.S)), zeros(hparams.nv - hparams.nh, hparams.nh) ) * y_samples_unrot .+ cpu(J.a));
+        y_samples_unrot = z[hparams.nv+1:end,:]
+        @info size(y_samples_unrot), size(Σ)
+        v_samples_fc = σ.(cpu(F.U) * Σ * y_samples_unrot .+ cpu(J.a));
         v_samples_fc = Array{Float32}(sign.(rand(hparams.nv, size(v_samples_fc,2)) .< v_samples_fc));
     elseif i==2
         # nothing
-        y_samples_unrot = z_samples[1:delta,:]
-        v_samples_fc = σ.(cpu(F.U) * vcat(cpu(Diagonal(F.S)), zeros(hparams.nv - hparams.nh, hparams.nh) ) * y_samples_unrot .+ cpu(J.a));
+        y_samples_unrot = vcat(z_samples[hparams.nv+1:end,:], zeros(hparams.nh - hparams.nv,nsamples))
+        @info size(y_samples_unrot), size(Σ)
+        v_samples_fc = σ.(cpu(F.U) * Σ * y_samples_unrot .+ cpu(J.a));
         v_samples_fc = Array{Float32}(sign.(rand(hparams.nv, size(v_samples_fc,2)) .< v_samples_fc));
-        v_samples_fc,h = gibbs_sample(v_samples_fc, J, hparams, size(v_samples_fc,2),1)
+        # v_samples_fc,h = gibbs_sample(v_samples_fc, J, hparams, size(v_samples_fc,2),1)
     end
 
     lnum=10
     mat = cat([cat([reshape(v_samples_fc[:,i+j*lnum],28,28) for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
     mat_rot = reverse(transpose(mat), dims=1)
-    push!(figs, heatmap(cpu(mat_rot)))
+    push!(figs, heatmap(cpu(mat_rot), c=cgrad(:buda, 2, rev=true, scale = :linear, categorical=true), legend=:none, ticks=:none, frame=:box, size=(550,500)))
 end
 plot(figs..., size=(1200,900))
 
@@ -478,6 +487,8 @@ mat = cat([cat([reshape(v[:,i+j*lnum],28,28) for i in 1:lnum]..., dims=2) for j 
 mat_rot = reverse(transpose(mat), dims=1)
 plot(heatmap(cpu(mat_rot)), title=ep)
 
+figs[2]
+savefig(figs[2], PATH * "MS/numbers_samples_784_Cholesky.pdf")
 
 #############
 rbm, J, m, hparams, rbmZ = initModel(nv=hparams.nv, nh=hparams.nh, batch_size=500, lr=1.5, t=10, gpu_usage = false, optType="Adam")
@@ -511,7 +522,7 @@ rbm, J, m, hparams, opt = loadModel(modelName, dev, idx=100);
 rbm, J, m, hparams, rbmZ = initModel(nv=hparams.nv, nh=hparams.nh, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 F = LinearAlgebra.svd(J.w, full=true);
 
-v,h = gibbs_sample(J, hparams, 200,2000)
+v,h = gibbs_sample(J, hparams, 200,1000)
 
 lnum=10
 mat = cat([cat([reshape(v[:,i+j*lnum],28,28) for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
@@ -520,8 +531,9 @@ fig = heatmap(cpu(mat_rot), c=cgrad(:buda, 2, rev=true, scale = :linear, categor
 savefig(fig, PATH * "MS/numbers_samples.pdf")
 
 
-x = cpu(-F.U' * v)
-y = cpu(-F.Vt * h);
+
+x = cpu(F.U' * v)
+y = cpu(F.Vt * h);
 p_list = []
 for enLandIdx in [1,2,30,498]
     p = plot(-15-b0s[enLandIdx,ep]/λs[enLandIdx,ep]:10-b0s[enLandIdx,ep]/λs[enLandIdx,ep], -15-a0s[enLandIdx,ep]/λs[enLandIdx,ep]:13-a0s[enLandIdx,ep]/λs[enLandIdx,ep], (x,y)->f(x,y,enLandIdx, a0s[:,ep], b0s[:,ep], λs[:,ep]), 
@@ -536,9 +548,49 @@ for enLandIdx in [1,2,30,498]
     push!(p_list,p)
 end
 
-fig = plot(p_list..., size=(780,700), xlabel="x", ylabel="y")
+fig = plot(p_list..., size=(780,700), xlabel="x", ylabel="y", tickfontsize=10, labelfontsize=15, legendfontsize=15)
+
 savefig(fig, PATH * "MS/en_land_rand.pdf")
 
+fig = heatmap(reverse(transpose(reshape(cpu(v[:,16]),28,28)),dims=1), c=cgrad(:buda, 2, rev=true, scale = :linear, categorical=true), legend=:none, ticks=:none, frame=:box, size=(550,500))
+savefig(fig, PATH * "MS/sampleOf3Gibbs.png")
+
+p_list = []
+for enLandIdx in [500] #1,2,3,4,20,30,50,100,200,300,498,500]
+    p = plot(-15-b0s[enLandIdx,ep]/λs[enLandIdx,ep]:10-b0s[enLandIdx,ep]/λs[enLandIdx,ep], -50-a0s[enLandIdx,ep]/λs[enLandIdx,ep]:13-a0s[enLandIdx,ep]/λs[enLandIdx,ep], (x,y)->f(x,y,enLandIdx, a0s[:,ep], b0s[:,ep], λs[:,ep]), 
+        st=:contourf, c=cgrad(:vik, 105, rev=true, scale = :linear, categorical=false), 
+        clabels=true, legend=:none)
+    p = plot!(x[enLandIdx,16:16], y[enLandIdx,16:16], st=:scatter, markerstrokewidth=0.01, markersize=10, color=:black, markershape=:hexagon, label=:none)
+    # for num_label in string.(collect(0:9))
+    #     p = plot!(x_s[num_label][enLandIdx,:,ep], y_s[num_label][enLandIdx,:,ep], st=:scatter, markerstrokewidth=0.01, markersize=5)
+    # end
+    p = plot!([-b0s[enLandIdx,ep]/λs[enLandIdx,ep]],[-a0s[enLandIdx,ep]/λs[enLandIdx,ep]], ms=15, st=:scatter, c=:magenta, legend=:none,
+        markershape=:star5, markerstrokewidth=0, frame=:box, label="a", xlabel="x", ylabel="y", tickfontsize=10, labelfontsize=15, legendfontsize=15,
+        size=(580,500))
+    # p = annotate!(-10,5,"(7,3)")
+    push!(p_list,p)
+    savefig(p, PATH * "MS/en_land_1_sample_$enLandIdx.png")
+end
+p_list[1]
+
+# function annotatewithbox!(
+#     fig::Plots.Plot,
+#     text::Plots.PlotText,
+#     x::Real, y::Real, Δx::Real, Δy::Real = Δx;
+#     kwargs...)
+
+#     box = Plots.Shape(:rect)
+
+#     Plots.scale!(box, Δx, Δy)
+#     Plots.translate!(box, x, y)
+
+#     Plots.plot!(fig, box, c = :white, linestroke = :black, label = false; kwargs...)
+#     Plots.annotate!(fig, x, y, text)
+
+#     fig
+# end
+# annotatewithbox!(p_list[1], text("test"), -9,5,-8,2)
+#######Polar coord
 ep=100
 plot()
 for i in 1:8

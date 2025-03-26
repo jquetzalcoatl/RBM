@@ -79,8 +79,48 @@ plot(ll["num"])
 plot(- mean.(ll["rais"]))
 plot!(-vcat(ll["rais"]...))
 
-ll
 
+for modelname in config.model_analysis["files"]
+    plot!(load("/home/javier/Projects/RBM/Results/Figs/$modelname/partition_cossio.jld")["lla"])
+end
+
+ll = Dict()
+for modelname in config.model_analysis["files"]
+    ll[modelname] = load("/home/javier/Projects/RBM/Results/Figs/$modelname/partition_cossio.jld")
+end
+
+sort(collect(keys(ll)))
+lla_m = mean.([[ll[key]["lla"] for key in sort(collect(keys(ll))) ][i:i+4] for i in 6:5:25])
+llr_m = mean.([[ll[key]["llr"] for key in sort(collect(keys(ll))) ][i:i+4] for i in 6:5:25])
+lla_std = std.([[ll[key]["lla"] for key in sort(collect(keys(ll))) ][i:i+4] for i in 6:5:25])
+llr_std = std.([[ll[key]["llr"] for key in sort(collect(keys(ll))) ][i:i+4] for i in 6:5:25])
+ 
+lab = ["500 PCD (AIS)","500 PCD (RAIS)","784 PCD (AIS)", "784 PCD (RAIS)", "1200 PCD (AIS)", "1200 PCD (RAIS)","3000 PCD (AIS)", "3000 PCD (RAIS)"]
+plot()
+for (j,i) in enumerate([4,3,1,2])
+    plot!(lla_m[i], yerror=lla_std[i], lw=2, marker=:square, markerstrokewidth=0,
+        markersize=10, label=lab[2*j-1], color=palette(:tab10)[j]   )
+    plot!(llr_m[i], yerror=llr_std[i], lw=2, marker=:circle, markerstrokewidth=0,
+        markersize=10, label=lab[2*j], color=palette(:tab10)[j], ls=:dash   )
+end
+plot!(frame=:box, xlabel="Epochs (x10)", ylabel="Log-likelihood", tickfontsize=15, labelfontsize=17, legendfontsize=15, size=(750,500),
+    left_margin=3mm, bottom_margin=2mm)
+savefig(PATH * "MS/AIS_RAIS_Models.png")
+
+
+
+
+
+plot!(legend=:outertopright, size=(700,500))
+
+palette(:tab10)[1]
+
+
+("$(PATH)/Figs/$(modelname)/partition_cossio.jld", rais=R_ais, rrev=R_rev, lla=num .- mean.(R_ais), 
+        llr=num .- mean.(R_rev), num=num)
+
+
+###############################
 using Integrals, QuadGK
 f(x, p) = exp(cos(x)*p)
 p = 5.4

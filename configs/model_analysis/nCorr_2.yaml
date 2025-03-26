@@ -1,15 +1,4 @@
 files: 
-  - PCD-500-784-replica4
-  - PCD-500-784-replica5
-  - PCD-500-1200-replica1
-  - PCD-500-1200-replica2
-  - PCD-500-1200-replica3
-  - PCD-500-1200-replica4
-  - PCD-500-1200-replica5
   - PCD-500-3000-replica1
-  - PCD-500-3000-replica2
-  - PCD-500-3000-replica3
-  - PCD-500-3000-replica4
-  - PCD-500-3000-replica5
-
+  
 output: Correlations/

@@ -1,4 +1,4 @@
-using Random, Plots, Statistics, LinearAlgebra, Plots.PlotMeasures
+using Random, Plots, Statistics, LinearAlgebra, Plots.PlotMeasures, JLD2
 using CUDA
 CUDA.device_reset!()
 CUDA.device!(0)
@@ -114,10 +114,10 @@ end
 ############## Hierarchical probing
 modelName = config.model_analysis["files"]
 rbm, J, m, hparams, opt = loadModel("PCD-500-replica1", dev, idx=100);
-rbm, J, m, hparams, opt = loadModel("PCD-500-replica1", dev, idx=100);
+rbm, J, m, hparams, opt = loadModel("PCD-500-784-replica1", dev, idx=100);
 rbm, J, m, hparams, opt = loadModel("CD-500-T1000-5-BW-replica1-L", dev, idx=1000);
 
-v,h = gibbs_sample(J, hparams, 200,2000)
+v,h = gibbs_sample(J, hparams, 200,1000)
 
 lnum=10
 mat = cat([cat([reshape(v[:,i+j*lnum],28,28) for i in 1:lnum]..., dims=2) for j in 0:lnum-1]...,dims=1)
@@ -141,7 +141,7 @@ for j in 10:2:20
     @info "\t" j
     Mrot = Mrot * rotmnd_optimized(Diagonal(ones(hparams.nv))[:,vcat(collect(1:j), collect(j+3:784))],π/2)
 end
-Mrot2 = rotmnd_optimized(Diagonal(ones(hparams.nv))[:,vcat([],collect(3:7),collect(8:hparams.nv))],π/2)
+Mrot2 = rotmnd_optimized(Diagonal(ones(hparams.nv))[:,vcat([],collect(3:7),collect(8:hparams.nv))],π)
 
 Σ = cat(cpu(Diagonal(F.S)), (hparams.nv - hparams.nh > 0 ? zeros(abs(hparams.nv - hparams.nh), hparams.nh) : zeros(hparams.nv, abs(hparams.nv - hparams.nh))), 
     dims=(hparams.nv - hparams.nh > 0 ? 1 : 2) )
@@ -179,8 +179,8 @@ for j in 0:49
     end
 end
 
-num=20
-rbm, J, m, hparams, rbmZ = initModel(nv=3000, nh=500, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
+num=1000
+rbm, J, m, hparams, rbmZ = initModel(nv=784, nh=500, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
 Λ = zeros(min(hparams.nv,hparams.nh),num)
 for i in 1:num
     rbm, J, m, hparams, rbmZ = initModel(nv=hparams.nv, nh=hparams.nh, batch_size=500, lr=1.5, t=10, gpu_usage = true, optType="Adam")
@@ -191,7 +191,7 @@ end
 
 fig = plot(reshape(Λ,:), st=:histogram, normalize=true, bins=100, 
     linewidth=0, frame=:box, label=:none, xlabel="λ", ylabel="ρ(λ)",
-    tickfontsize=15, labelfontsize=15, legendfontsize=15, size=(700,500),
+    tickfontsize=15, labelfontsize=17, legendfontsize=15, size=(700,500),
     left_margin=3mm, bottom_margin=2mm, color=:magenta)
 # vline!([sqrt(3000-784)*10^(-2)])
 # q = hparams.nh/10^4
@@ -206,12 +206,12 @@ plot!(λm(hparams.nv,hparams.nh,Jstd):0.0001:λp(hparams.nv,hparams.nh,Jstd),
     color=:black, label=:none, lw=7)
 # √((λp^2-x^2)*(x^2-λm^2))/(π*q*x)
 
-savefig(fig, PATH * "MS/rho_lambda_random_M$(hparams.nv).pdf")
+savefig(fig, PATH * "MS/rho_lambda_random_M$(hparams.nv).png")
 
 modelName = config.model_analysis["files"]
-modelSize=[500,784,784,784,500]
+modelSize=[500,784,784,784]
 lambda_models = Dict()
-for (j,lab) in enumerate(["PCD-500-replica","PCD-500-784-replica", "PCD-500-1200-replica","PCD-500-3000-replica", "CD-500-T1000-5-BW-replica"])
+for (j,lab) in enumerate(["PCD-500-replica","PCD-500-784-replica", "PCD-500-1200-replica","PCD-500-3000-replica"]) #, "CD-500-T1000-5-BW-replica"])
     Λ = zeros(modelSize[j],5)
     if contains(lab, "PCD")
         for i in 1:5
@@ -229,17 +229,17 @@ for (j,lab) in enumerate(["PCD-500-replica","PCD-500-784-replica", "PCD-500-1200
     lambda_models[lab] = Λ
 end
 
-lab = ["500 PCD","784 PCD", "1200 PCD","3000 PCD", "500 CD + annealing"]
+lab = ["500 PCD","784 PCD", "1200 PCD","3000 PCD"] #, "500 CD + annealing"]
 fig = plot()
 for (i,key) in enumerate(sort(collect(keys(lambda_models)), rev=true))
     fig = plot!(reshape(lambda_models[key],:), st=:histogram, normalize=true, bins=range(0,41,40), 
-    linewidth=0.1, yscale=:log10, frame=:box, alpha=1., label=lab[i], xlabel="λ", 
-    ylabel="ρ(λ)", tickfontsize=15, labelfontsize=15, legendfontsize=15, size=(700,500),
+    linewidth=0.1, yscale=:log10, frame=:box, alpha=0.8, label=lab[i], xlabel="λ", 
+    ylabel="ρ(λ)", tickfontsize=15, labelfontsize=17, legendfontsize=15, size=(700,500),
     left_margin=3mm, bottom_margin=2mm, palette=:seaborn_bright)
 end
 fig = plot!(legend = :topright)
 
-savefig(fig, PATH * "MS/rho_lambda_trained_models.pdf")
+savefig(fig, PATH * "MS/rho_lambda_trained_models.png")
 
 keys(lambda_models)
 plot()
@@ -301,6 +301,16 @@ fig = plot!(xlabel="Weights", ylabel="PDF",
 savefig(fig, PATH * "MS/trained_weights_rot_1200.png")
 savefig(fig, PATH * "MS/random_weights_rot.png")
 
+
+ww = load("/home/javier/Projects/RBM/Results/Figs/$(config.model_analysis["files"][21])/divergence.jld")["w"]
+ww_rot = load("/home/javier/Projects/RBM/Results/Figs/$(config.model_analysis["files"][21])/divergence.jld")["w_rot"]
+
+fig = plot(ww[1:784*1200], st=:histogram, normalize=true, yscale=:log10, lw=0, color=:magenta, label="Before rotation")
+fig = plot!(ww_rot[1:784*1200], st=:histogram, normalize=true, yscale=:log10, lw=0, color=:blue, alpha=0.5, label="After rotation")
+fig = plot!(xlabel="Weights", ylabel="PDF", 
+    tickfontsize=15, labelfontsize=15, legendfontsize=15, 
+    frame=:box, size=(700,500), left_margin=3mm, bottom_margin=2mm, legend = :topleft)
+savefig(fig, PATH * "MS/trained_weights_rot_3000.png")
 
 ############Some featured plots
 num = 10000
@@ -482,3 +492,50 @@ function div_(p::Vector{Float64},q::Vector{Float64}, ϵ::Float64=1e-9)
 end
 
 div_(p_dis,q_dis)
+
+include("../rotational_symmetry.jl")
+
+w,w_rot, p_dis,q_dis,kl,js = measure_div("")
+kl,js
+
+config.model_analysis["files"]
+
+d = Dict()
+for modelname in config.model_analysis["files"][1:25]
+    @info modelname
+    d[modelname] = load("/home/javier/Projects/RBM/Results/Figs/$(modelname)/divergence.jld")
+end
+
+
+# plot([key for key in sort(collect(keys(d))) ], [d[key]["js"] for key in sort(collect(keys(d))) ], 
+#     xrot=45 )
+
+# plot([[key for key in sort(collect(keys(d))) ][i] for i in 6:5:20], 
+#     mean.([[d[key]["js"] for key in sort(collect(keys(d))) ][i:i+4] for i in 6:5:20]), 
+#     yerror=std.([[d[key]["js"] for key in sort(collect(keys(d))) ][i:i+4] for i in 6:5:20]), 
+#     xrot=45, lw=4, marker=:circle, markersize=7, markerstrokewidth=0, frame=:box)
+# plot!([[key for key in sort(collect(keys(d))) ][i] for i in 1:5:20], 
+#     mean.([[d[key]["kl"] for key in sort(collect(keys(d))) ][i:i+4] for i in 1:5:20]), 
+#     yerror=std.([[d[key]["kl"] for key in sort(collect(keys(d))) ][i:i+4] for i in 1:5:20]), 
+#     xrot=45)
+using EasyFit
+fitt = fitlinear([1/1200,1/784,1/500],mean.([[d[key]["js"] for key in sort(collect(keys(d))) ][i:i+4] for i in 6:5:20]))
+fitt.ypred
+fitt.residues
+
+sort(collect(keys(d)))
+
+js_m = mean.([[d[key]["js"] for key in sort(collect(keys(d))) ][i:i+4] for i in 6:5:25])
+js_std = std.([[d[key]["js"] for key in sort(collect(keys(d))) ][i:i+4] for i in 6:5:25])
+
+fig = plot([1/3000,1/1200,1/784,1/500], js_m[[2,1,3,4]], 
+    yerror=js_std[[2,1,3,4]], 
+    lw=5, marker=:circle, markersize=12, markerstrokewidth=0, frame=:box, 
+    label="Trained RBM", color=:magenta)
+fig = hline!([js], lw=4, color=:black, ls=:dash, label="Untrained RBM")
+fig = plot!(xlabel="1/M", ylabel="Jensen Div", tickfontsize=15, labelfontsize=20, legendfontsize=17, 
+    frame=:box, size=(1600,720), left_margin=10mm, right_margin=6mm, bottom_margin=8mm, 
+    legend = :none, yscale=:log10)
+# fig = plot!(0.:0.0001:0.002, x->fitt.b + fitt.a*x, label="Linear Fit", lw=3, ribbon=1e-4, color=:blue)
+
+savefig(fig, PATH * "MS/JS_vs_size.png")
